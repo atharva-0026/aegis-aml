@@ -1,0 +1,17 @@
+streamlit
+pandas
+numpy
+scikit-learn
+xgboost
+imbalanced-learn
+joblib
+groq
+dotenv
+plotly
+python-dotenv
+flask
+Flask
+pandas
+numpy
+joblib
+python-dotenv
