@@ -1,5 +1,8 @@
 # Aegis — AML Compliance Platform
 
+
+🔗 **Live Demo:** https://aegis-aml.streamlit.app
+
 End-to-end anti-money laundering detection platform built for financial institutions.
 
 ## Features
