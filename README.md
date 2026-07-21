@@ -22,6 +22,9 @@ Published at **ICAIIHI 2025** — GNN-based AML detection in financial networks
 ## Architecture
 FastAPI backend → GNN risk scorer → XGBoost classifier → RAG narrative generator → React frontend
 
+## License
+MIT — see [LICENSE](LICENSE)
+
 ## Setup
 ```bash
 pip install -r requirements.txt
