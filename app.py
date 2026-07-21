@@ -1,3 +1,10 @@
+"""
+Aegis AML — Streamlit frontend.
+
+Bloomberg Terminal-style dashboard for scoring transactions,
+reviewing risk factors, and generating SAR narratives.
+"""
+
 import streamlit as st
 import pandas as pd
 import numpy as np
