@@ -1,3 +1,10 @@
+"""
+Preprocessing pipeline for the Aegis AML dataset.
+
+Loads raw transaction data, engineers features used by the risk
+scoring model, and writes processed splits to data/processed.
+"""
+
 import pandas as pd
 import random
 import os
