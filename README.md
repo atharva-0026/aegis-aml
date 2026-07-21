@@ -1,5 +1,7 @@
 # Aegis — AML Compliance Platform
 
+![Python](https://img.shields.io/badge/python-3.10+-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
 🔗 **Live Demo:** https://aegis-aml.streamlit.app
 
