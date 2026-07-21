@@ -1,3 +1,11 @@
+"""
+Training script for the Aegis AML risk scoring model.
+
+Trains an XGBoost classifier on preprocessed transaction data with
+SMOTE oversampling to handle class imbalance, then persists the
+model and feature list for use by predict.py.
+"""
+
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
