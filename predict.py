@@ -1,3 +1,7 @@
+"""
+Inference module for scoring transactions with the trained AML model.
+"""
+
 import os
 import joblib
 import pandas as pd
