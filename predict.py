@@ -12,6 +12,17 @@ features = joblib.load(features_path)
 
 
 def predict_transaction(amount, time, threshold=0.6):
+    """
+    Score a single transaction for AML risk.
+
+    Args:
+        amount: transaction amount
+        time: transaction time offset in seconds
+        threshold: probability cutoff for flagging as suspicious
+
+    Returns:
+        Risk prediction with probability score.
+    """
 
     # Create features for inference
     data = pd.DataFrame([{
