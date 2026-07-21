@@ -31,7 +31,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Page Configuration
 st.set_page_config(
     page_title="Aegis SAR - Financial Intelligence Terminal",
-    page_icon=None,
+    page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
