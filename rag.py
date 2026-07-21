@@ -1,3 +1,11 @@
+"""
+RAG pipeline for generating SAR (Suspicious Activity Report) narratives.
+
+Retrieves relevant context via TF-IDF similarity search and uses
+Groq's Llama 3.1 to generate human-readable compliance narratives
+for flagged transactions.
+"""
+
 from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
 from groq import Groq
