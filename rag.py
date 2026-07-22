@@ -97,7 +97,8 @@ def generate_narrative(amount, time, prediction, prob, transaction_type="transfe
     Generates a Suspicious Activity Report (SAR) narrative using Groq LLM (RAG-infused).
     Includes a beautiful fallback generator if Groq is not configured or fails.
     """
-    
+    from datetime import datetime
+
     # Retrieve regulatory context using RAG
     kb_doc = retrieve_regulatory_context(amount, time, transaction_type, location, flagged_by_rules)
     context_text = f"Compliance Reference: {kb_doc['title']}\nGuidelines: {kb_doc['text']}"
@@ -106,7 +107,7 @@ def generate_narrative(amount, time, prediction, prob, transaction_type="transfe
         return f"""======================================================================
 🔍 TRANSACTION SCAN REPORT (CLASSIFICATION: SAFE)
 ======================================================================
-Generated Date: 2026-05-21 Compliance Review System
+Generated Date: {datetime.now().strftime('%Y-%m-%d')} Compliance Review System
 
 1. TRANSACTION PROFILE:
    - Amount: ₹{amount:,.2f}
@@ -187,7 +188,7 @@ Filing Institution: EDI Compliance Operations Center
 Subject Account: [Review Hold - Under Investigation]
 
 1. SUMMARY OF SUSPICIOUS ACTIVITY:
-   On 2026-05-21, our automated transaction monitoring system flagged a highly suspicious {transaction_type} transaction. The alert triggered because {override_reason}. Under FinCEN guidelines, this activity represents an elevated risk profile and requires a compliance hold.
+   On {datetime.now().strftime('%Y-%m-%d')}, our automated transaction monitoring system flagged a highly suspicious {transaction_type} transaction. The alert triggered because {override_reason}. Under FinCEN guidelines, this activity represents an elevated risk profile and requires a compliance hold.
 
 2. TRANSACTION INVESTIGATION DETAILS:
    - Principal Amount: ₹{amount:,.2f}
