@@ -26,7 +26,14 @@ def predict_transaction(amount, time, threshold=0.6):
 
     Returns:
         Risk prediction with probability score.
+
+    Raises:
+        ValueError: if amount or time is negative.
     """
+    if amount < 0:
+        raise ValueError(f"amount must be non-negative, got {amount}")
+    if time < 0:
+        raise ValueError(f"time must be non-negative, got {time}")
 
     # Create features for inference
     data = pd.DataFrame([{
