@@ -710,7 +710,7 @@ elif st.session_state.nav_option == "Batch Scan Centre":
                             color = 'rgba(239, 68, 68, 0.2)' if val == 'Fraud' else 'rgba(0,0,0,0)'
                             return f'background-color: {color}'
                         
-                        st.dataframe(batch_df.style.applymap(color_fraud, subset=['Decision Audit']), use_container_width=True)
+                        st.dataframe(batch_df.style.map(color_fraud, subset=['Decision Audit']), use_container_width=True)
                         
                         # Export results CSV
                         results_csv = batch_df.to_csv(index=False).encode('utf-8')
