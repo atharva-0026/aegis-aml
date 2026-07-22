@@ -47,3 +47,14 @@ def test_no_signals_falls_back_to_a_document():
     """Even a completely unremarkable transaction should still retrieve something."""
     result = retrieve_regulatory_context(amount=50, time=50000)
     assert result in KNOWLEDGE_BASE
+
+
+def test_narrative_uses_current_date_not_hardcoded():
+    """Regression test: narratives previously had a hardcoded 2026-05-21 date."""
+    from datetime import datetime
+    from rag import generate_narrative
+
+    narrative = generate_narrative(500, 40000, "Normal", 0.01)
+    today = datetime.now().strftime("%Y-%m-%d")
+    assert today in narrative
+    assert "2026-05-21" not in narrative or today == "2026-05-21"
