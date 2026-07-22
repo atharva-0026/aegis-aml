@@ -1,6 +1,10 @@
 # Changelog
 
 ## Unreleased
+- Fixed hardcoded date (2026-05-21) in SAR narrative templates
+- Added ValueError validation for negative amount/time in predict_transaction
+- Added 18-test suite covering predict.py, rag.py, and model artifacts
+- Added GitHub Actions CI workflow to run tests on push/PR
 - Added MIT LICENSE and .env.example
 - Added shield favicon to Streamlit page
 - Added README badges and license link
