@@ -52,3 +52,13 @@ def test_threshold_changes_ml_flag():
     high = predict_transaction(2000, 2000, threshold=0.999)
     assert low["flagged_by_ml"] is True
     assert high["flagged_by_ml"] is False
+
+
+def test_negative_amount_raises():
+    with pytest.raises(ValueError):
+        predict_transaction(-100, 1000)
+
+
+def test_negative_time_raises():
+    with pytest.raises(ValueError):
+        predict_transaction(100, -1)
