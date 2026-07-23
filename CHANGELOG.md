@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Extracted clean_nav into nav_utils.py with dedicated unit tests
 - Fixed hardcoded date (2026-05-21) in SAR narrative templates
 - Added ValueError validation for negative amount/time in predict_transaction
 - Added 18-test suite covering predict.py, rag.py, and model artifacts
