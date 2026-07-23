@@ -283,9 +283,7 @@ PAGES = [
     " Model & Knowledge Base"
 ]
 
-# Helper to clean emojis, special chars and whitespaces to get canonical page name
-def clean_nav(page_str):
-    return page_str.encode('ascii', 'ignore').decode('ascii').strip()
+from nav_utils import clean_nav
 
 CLEAN_PAGES = [clean_nav(p) for p in PAGES]
 
