@@ -48,8 +48,12 @@ def predict_transaction(amount, time, threshold=0.6):
     data['high_amount_flag'] = (data['amount'] > 10000).astype(int)
 
     data['is_night'] = (data['time'] % 86400 < 21600).astype(int)
+    # KNOWN ISSUE: these fixed bins/divisor don't match preprocessing.py's
+    # training-time computation (data-driven pd.cut bins=5, mean-based
+    # ratio). See preprocessing.py for details — needs alignment or
+    # retraining before this feature is fully trustworthy.
     data['amount_bin'] = pd.cut(data['amount'], bins=[0, 100, 1000, 10000, 100000, np.inf], labels=False)
-    data['amount_ratio'] = data['amount'] / 5000 
+    data['amount_ratio'] = data['amount'] / 5000
 
     data.fillna(0, inplace=True)
 
