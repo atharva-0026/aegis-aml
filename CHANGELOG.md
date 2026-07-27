@@ -1,6 +1,9 @@
 # Changelog
 
 ## Unreleased
+- Flagged real train/inference feature mismatch in amount_bin and amount_ratio (see KNOWN_ISSUES.md)
+- Added type hints to predict_transaction and clean_nav
+- Added pytest.ini config, CODEOWNERS
 - Extracted clean_nav into nav_utils.py with dedicated unit tests
 - Fixed hardcoded date (2026-05-21) in SAR narrative templates
 - Added ValueError validation for negative amount/time in predict_transaction
