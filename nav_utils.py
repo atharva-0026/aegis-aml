@@ -6,7 +6,7 @@ needing a running Streamlit context.
 """
 
 
-def clean_nav(page_str):
+def clean_nav(page_str: str) -> str:
     """Strip emojis and leading/trailing whitespace from a nav label
     to get its canonical ASCII form, e.g. ' Single Scan' -> 'Single Scan'."""
     return page_str.encode('ascii', 'ignore').decode('ascii').strip()
