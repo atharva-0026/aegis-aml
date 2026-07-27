@@ -26,6 +26,9 @@ FastAPI backend → GNN risk scorer → XGBoost classifier → RAG narrative gen
 ## License
 MIT — see [LICENSE](LICENSE)
 
+## Known Issues
+See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for a tracked train/inference feature mismatch.
+
 ## Setup
 ```bash
 pip install -r requirements.txt
