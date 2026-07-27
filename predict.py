@@ -2,6 +2,8 @@
 Inference module for scoring transactions with the trained AML model.
 """
 
+from __future__ import annotations
+
 import os
 import joblib
 import pandas as pd
@@ -15,7 +17,7 @@ model = joblib.load(model_path)
 features = joblib.load(features_path)
 
 
-def predict_transaction(amount, time, threshold=0.6):
+def predict_transaction(amount: float, time: float, threshold: float = 0.6) -> dict:
     """
     Score a single transaction for AML risk.
 
