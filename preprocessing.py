@@ -62,15 +62,11 @@ df['high_amount_flag'] = (df['amount'] > 10000).astype(int)
 
 
 df['is_night'] = (df['time'] % 86400 < 21600).astype(int)
-# KNOWN ISSUE: this data-driven binning does not match the fixed bin edges
-# used in predict.py's inference path (bins=[0,100,1000,10000,100000,inf]).
-# The two amount_bin computations are NOT equivalent — retraining with
-# matching bin edges (or aligning predict.py to this scheme) is needed
-# before this feature can be trusted at inference time. See predict.py.
+# NOTE: predict.py's TRAIN_AMOUNT_BIN_EDGES/TRAIN_AMOUNT_MEAN constants
+# were derived from this exact computation on the processed dataset.
+# If you regenerate the training data, recompute and update those
+# constants in predict.py too. See KNOWN_ISSUES.md for history.
 df['amount_bin'] = pd.cut(df['amount'], bins=5, labels=False)
-# KNOWN ISSUE: predict.py divides by a hardcoded 5000 instead of the
-# training-time mean, so amount_ratio also differs between train and
-# inference. Same fix needed as amount_bin above.
 df['amount_ratio'] = df['amount'] / df['amount'].mean()
 
 
