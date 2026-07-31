@@ -2,10 +2,12 @@
 
 ## Train/inference feature mismatch — amount_bin, amount_ratio
 
-**Status:** Open — needs retraining or code alignment before considered resolved.
+**Status:** Resolved (2026-08). Fixed via option 2 below — no retraining
+needed since the training data was recoverable from `data/processed/sar_dataset.csv`.
 
 `preprocessing.py` (used at training time) and `predict.py` (used at
-inference time) compute `amount_bin` and `amount_ratio` differently:
+inference time) previously computed `amount_bin` and `amount_ratio`
+differently:
 
 | Feature | preprocessing.py (train) | predict.py (inference) |
 |---|---|---|
@@ -17,10 +19,16 @@ served a differently-distributed version of the same named feature.
 This likely degrades (rather than helps) the contribution of these two
 features to the fraud probability score.
 
-**Fix options:**
+**Fix applied:** `predict.py` now uses `TRAIN_AMOUNT_BIN_EDGES` and
+`TRAIN_AMOUNT_MEAN` constants derived directly from the processed
+training dataset (`data/processed/sar_dataset.csv`), so `amount_bin`
+and `amount_ratio` are computed identically at inference time as they
+were during training. Verified by `test_amount_bin_matches_training_edges`
+and `test_amount_ratio_uses_training_mean` in `test_predict.py`.
+
+Original fix options considered:
 1. Retrain the model using the fixed bins/divisor from `predict.py`, or
 2. Compute the training-set mean and equal-width bin edges once, hardcode
    them into `predict.py` to match exactly what the model saw during training.
 
-Option 2 is lower-risk (no retraining required) and should be the next
-concrete task on this repo.
+Option 2 was chosen — lower risk, no retraining required.
