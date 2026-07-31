@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Resolved train/inference feature mismatch: amount_bin and amount_ratio now use exact training-derived constants (see KNOWN_ISSUES.md)
 - Flagged real train/inference feature mismatch in amount_bin and amount_ratio (see KNOWN_ISSUES.md)
 - Added type hints to predict_transaction and clean_nav
 - Added pytest.ini config, CODEOWNERS
