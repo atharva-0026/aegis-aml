@@ -62,3 +62,22 @@ def test_negative_amount_raises():
 def test_negative_time_raises():
     with pytest.raises(ValueError):
         predict_transaction(100, -1)
+
+
+def test_amount_bin_matches_training_edges():
+    """Regression test: amount_bin must use the same bin edges as
+    preprocessing.py's training-time computation, not arbitrary fixed bins."""
+    import pandas as pd
+    from predict import TRAIN_AMOUNT_BIN_EDGES
+
+    sample = pd.DataFrame({"amount": [500, 2500, 5000, 9000]})
+    result = pd.cut(
+        sample["amount"], bins=TRAIN_AMOUNT_BIN_EDGES, labels=False, include_lowest=True
+    )
+    assert list(result) == [0, 1, 2, 4]
+
+
+def test_amount_ratio_uses_training_mean():
+    from predict import TRAIN_AMOUNT_MEAN
+
+    assert abs(TRAIN_AMOUNT_MEAN - 87.51) < 0.01
