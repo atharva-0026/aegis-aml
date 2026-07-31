@@ -16,6 +16,12 @@ features_path = os.path.join(BASE_DIR, "features.pkl")
 model = joblib.load(model_path)
 features = joblib.load(features_path)
 
+# Exact bin edges and mean derived from data/processed/sar_dataset.csv
+# (the actual training data), replacing the previously mismatched fixed
+# bins and hardcoded divisor. See KNOWN_ISSUES.md for background.
+TRAIN_AMOUNT_BIN_EDGES = [-10.0, 2000.0, 4000.0, 6000.0, 8000.0, 10000.0]
+TRAIN_AMOUNT_MEAN = 87.5126602
+
 
 def predict_transaction(amount: float, time: float, threshold: float = 0.6) -> dict:
     """
