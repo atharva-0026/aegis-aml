@@ -60,8 +60,10 @@ def predict_transaction(amount: float, time: float, threshold: float = 0.6) -> d
     # training-time computation (data-driven pd.cut bins=5, mean-based
     # ratio). See preprocessing.py for details — needs alignment or
     # retraining before this feature is fully trustworthy.
-    data['amount_bin'] = pd.cut(data['amount'], bins=[0, 100, 1000, 10000, 100000, np.inf], labels=False)
-    data['amount_ratio'] = data['amount'] / 5000
+    data['amount_bin'] = pd.cut(
+        data['amount'], bins=TRAIN_AMOUNT_BIN_EDGES, labels=False, include_lowest=True
+    )
+    data['amount_ratio'] = data['amount'] / TRAIN_AMOUNT_MEAN
 
     data.fillna(0, inplace=True)
 
