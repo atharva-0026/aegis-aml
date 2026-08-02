@@ -18,3 +18,6 @@ streamlit run app.py
 ## Guidelines
 - Keep functions documented with docstrings
 - Run the app locally before opening a PR
+- Never commit local absolute paths (e.g. `C:\Users\...`, `/Users/...`) as
+  fallback values in source — use relative paths or environment variables
+  instead. `test_no_leaked_paths.py` guards against this in CI.
