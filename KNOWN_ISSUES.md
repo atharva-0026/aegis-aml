@@ -32,3 +32,18 @@ Original fix options considered:
    them into `predict.py` to match exactly what the model saw during training.
 
 Option 2 was chosen — lower risk, no retraining required.
+
+---
+
+## Unseeded random.choice() in preprocessing.py
+
+**Status:** Resolved (2026-08).
+
+`location` and `transaction_type` columns were generated with
+`random.choice()` without ever calling `random.seed()`, so even though
+`df.sample(..., random_state=42)` and the SMOTE/train_test_split calls
+elsewhere were reproducible, these two columns were not — rerunning
+the pipeline could silently produce a different dataset.
+
+**Fix:** added `random.seed(42)` immediately before the `random.choice()`
+calls in `preprocessing.py`.
