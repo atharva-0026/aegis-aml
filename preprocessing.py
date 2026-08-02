@@ -49,6 +49,9 @@ df.rename(columns={
 locations = ['India', 'Dubai', 'USA', 'UK', 'Singapore']
 types = ['transfer', 'withdrawal', 'payment']
 
+# Seed for reproducibility — random_state=42 already covers df.sample(),
+# this covers the random.choice() calls below so full reruns are identical.
+random.seed(42)
 df['location'] = [random.choice(locations) for _ in range(len(df))]
 df['transaction_type'] = [random.choice(types) for _ in range(len(df))]
 
