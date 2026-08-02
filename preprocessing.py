@@ -29,8 +29,6 @@ file_path = os.path.join(BASE_DIR, "creditcard.csv")
 if not os.path.exists(file_path):
     # Fallback to local cwd just in case
     file_path = "creditcard.csv"
-    if not os.path.exists(file_path):
-        file_path = r"C:\Users\HP\Desktop\EDI's\EDI\creditcard.csv"
 
 if not os.path.exists(file_path):
     raise FileNotFoundError("creditcard.csv not found. Please place it in the root folder.")
