@@ -31,8 +31,6 @@ file_path = os.path.join(BASE_DIR, "data", "processed", "sar_dataset.csv")
 
 if not os.path.exists(file_path):
     file_path = "data/processed/sar_dataset.csv"
-    if not os.path.exists(file_path):
-        file_path = r"C:\Users\HP\Desktop\EDI's\EDI\data\processed\sar_dataset.csv"
 
 if not os.path.exists(file_path):
     raise FileNotFoundError(" Run preprocessing first to generate the dataset at data/processed/sar_dataset.csv")
