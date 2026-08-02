@@ -46,3 +46,16 @@ def test_no_hardcoded_personal_path_leak():
         content = f.read()
     assert "C:\\Users" not in content
     assert "Desktop" not in content
+
+
+def test_preprocessing_seeds_random_module():
+    """Regression test: preprocessing.py must seed the random module
+    before random.choice() calls, or location/transaction_type generation
+    won't be reproducible across reruns. See KNOWN_ISSUES.md."""
+    with open(os.path.join(os.path.dirname(__file__), "preprocessing.py")) as f:
+        lines = [ln for ln in f if not ln.strip().startswith("#")]
+    content = "".join(lines)
+    seed_pos = content.find("random.seed(")
+    choice_pos = content.find("random.choice(")
+    assert seed_pos != -1, "random.seed() call not found in preprocessing.py"
+    assert seed_pos < choice_pos, "random.seed() must come before random.choice() calls"
