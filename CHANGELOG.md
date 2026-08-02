@@ -1,6 +1,9 @@
 # Changelog
 
 ## Unreleased
+- Removed leaked personal Windows dev paths (C:\Users\HP\Desktop\...) from preprocessing.py and train.py
+- Extracted resolve_dataset_path and FEATURE_COLUMNS into train_utils.py for testability
+- Added regression test guarding against future local-path leaks in source
 - Resolved train/inference feature mismatch: amount_bin and amount_ratio now use exact training-derived constants (see KNOWN_ISSUES.md)
 - Flagged real train/inference feature mismatch in amount_bin and amount_ratio (see KNOWN_ISSUES.md)
 - Added type hints to predict_transaction and clean_nav
