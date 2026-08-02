@@ -25,26 +25,17 @@ if sys.platform.startswith('win'):
         pass
 
 
+from train_utils import resolve_dataset_path, FEATURE_COLUMNS
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-file_path = os.path.join(BASE_DIR, "data", "processed", "sar_dataset.csv")
-
-if not os.path.exists(file_path):
-    file_path = "data/processed/sar_dataset.csv"
-
-if not os.path.exists(file_path):
-    raise FileNotFoundError(" Run preprocessing first to generate the dataset at data/processed/sar_dataset.csv")
+file_path = resolve_dataset_path(BASE_DIR)
 
 df = pd.read_csv(file_path)
 
 print("Dataset Loaded:", df.shape)
 
 
-features = [
-    'amount', 'time', 'amount_log', 'time_scaled',
-    'amount_squared', 'high_amount_flag',
-    'is_night', 'amount_bin', 'amount_ratio'
-]
+features = FEATURE_COLUMNS
 
 X = df[features]
 y = df['fraud']
