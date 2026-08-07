@@ -47,3 +47,32 @@ the pipeline could silently produce a different dataset.
 
 **Fix:** added `random.seed(42)` immediately before the `random.choice()`
 calls in `preprocessing.py`.
+
+---
+
+## Silently swallowed Groq API errors
+
+**Status:** Resolved (2026-08).
+
+`generate_narrative()` caught `Exception as e` when the Groq API call
+failed but never logged `e` — errors vanished silently and there was
+no way to tell from logs whether the LLM path was working or always
+falling back to the local template.
+
+**Fix:** the exception is now printed to stderr before falling back.
+
+---
+
+## Leftover "EDI" branding in SAR fallback template
+
+**Status:** Resolved (2026-08).
+
+The fallback SAR narrative (used when Groq isn't configured or fails)
+referenced "EDI Compliance Operations Center" and report IDs like
+`SAR-2026-EDI-####` — a leftover from the project's original hackathon
+codename before it became Aegis. Any fraud narrative shown to a user
+or reviewer displayed the wrong institution name.
+
+**Fix:** replaced with "Aegis Compliance Operations Center" and
+`SAR-2026-AEGIS-####`. Covered by
+`test_fraud_narrative_uses_aegis_branding_not_edi`.
