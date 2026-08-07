@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+- Fixed leftover "EDI" branding in SAR fallback template (now correctly says Aegis)
+- Fixed silently swallowed Groq API errors — now logged to stderr on fallback
 - Fixed unseeded random.choice() calls in preprocessing.py breaking full dataset reproducibility
 - Removed leaked personal Windows dev paths (C:\Users\HP\Desktop\...) from preprocessing.py and train.py
 - Extracted resolve_dataset_path and FEATURE_COLUMNS into train_utils.py for testability
