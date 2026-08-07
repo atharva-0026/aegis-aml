@@ -10,10 +10,12 @@ streamlit run app.py
 
 ## Project layout
 - `app.py` — Streamlit frontend
-- `train.py` — model training pipeline
+- `train.py` / `train_utils.py` — model training pipeline
 - `predict.py` — inference on new transactions
 - `preprocessing.py` — feature engineering
 - `rag.py` — SAR narrative generation
+- `nav_utils.py` — small UI helper functions
+- `test_*.py` — pytest suite (run with `pytest`)
 
 ## Guidelines
 - Keep functions documented with docstrings
