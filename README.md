@@ -9,19 +9,18 @@
 End-to-end anti-money laundering detection platform built for financial institutions.
 
 ## Features
-- **GNN-based transaction risk scoring** — graph neural network models suspicious transaction patterns
-- **XGBoost + SHAP** — explainable ML classifier with interpretable risk factors
-- **RAG pipeline** — auto-generates SAR narratives using LangChain + ChromaDB + Llama 3.1
-- **Bloomberg Terminal-style frontend** — dark, data-dense React UI
+- **XGBoost risk scoring** — trained classifier flags suspicious transactions by probability, with hardcoded rule overrides for high-value transfers
+- **RAG-lite narrative generation** — TF-IDF retrieval over a regulatory knowledge base feeds context into Llama 3.1 (via Groq) to draft SAR narratives, with a template-based fallback when the API is unavailable
+- **Streamlit terminal-style dashboard** — dark, data-dense UI for single-transaction scans, batch CSV scoring, and model diagnostics
 
 ## Stack
-`Python` `FastAPI` `Streamlit` `LangChain` `ChromaDB` `XGBoost` `React`
+`Python` `Streamlit` `XGBoost` `scikit-learn` `Groq (Llama 3.1)` `Plotly`
 
 ## Research
-Published at **ICAIIHI 2025** — GNN-based AML detection in financial networks
+Published at **ICAIIHI 2025** — GNN-based AML detection in financial networks. (Note: this repo's production model is XGBoost; the GNN approach was explored in the accompanying research paper, not deployed here.)
 
 ## Architecture
-FastAPI backend → GNN risk scorer → XGBoost classifier → RAG narrative generator → React frontend
+Streamlit frontend → XGBoost risk scorer → TF-IDF regulatory retrieval → Llama 3.1 narrative generation (Groq API, with local fallback)
 
 ## License
 MIT — see [LICENSE](LICENSE)
