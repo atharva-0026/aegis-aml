@@ -76,3 +76,21 @@ or reviewer displayed the wrong institution name.
 **Fix:** replaced with "Aegis Compliance Operations Center" and
 `SAR-2026-AEGIS-####`. Covered by
 `test_fraud_narrative_uses_aegis_branding_not_edi`.
+
+---
+
+## README claimed unused technologies (FastAPI, React, GNN, ChromaDB, LangChain)
+
+**Status:** Resolved (2026-08).
+
+The README's Features, Stack, and Architecture sections described a
+FastAPI backend, GNN risk scoring, ChromaDB vector storage, LangChain
+orchestration, and a React frontend. None of these exist in this repo —
+the actual implementation is Streamlit + XGBoost + TF-IDF retrieval +
+direct Groq API calls. Anyone reading the README then opening the code
+would immediately see the mismatch.
+
+**Fix:** rewrote the Features/Stack/Architecture sections to accurately
+describe the implemented system, and noted that the GNN approach was
+explored in the published research paper but is not what's deployed
+here. Covered by `test_readme_accuracy.py`.
