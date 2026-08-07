@@ -94,3 +94,17 @@ would immediately see the mismatch.
 describe the implemented system, and noted that the GNN approach was
 explored in the published research paper but is not what's deployed
 here. Covered by `test_readme_accuracy.py`.
+
+---
+
+## data/raw/ directory created but never read
+
+**Status:** Resolved (2026-08).
+
+`preprocessing.py` created a `data/raw/` directory on every run via
+`os.makedirs(...)`, but the actual `creditcard.csv` load only ever
+checked the repo root — `data/raw/` was dead: created, documented in
+`data/README.md`, but never actually read.
+
+**Fix:** `preprocessing.py` now checks `data/raw/creditcard.csv` first,
+falling back to the repo root for backward compatibility.
