@@ -59,3 +59,12 @@ def test_preprocessing_seeds_random_module():
     choice_pos = content.find("random.choice(")
     assert seed_pos != -1, "random.seed() call not found in preprocessing.py"
     assert seed_pos < choice_pos, "random.seed() must come before random.choice() calls"
+
+
+def test_preprocessing_checks_data_raw_before_root():
+    """Regression test: data/raw/ was created but never actually checked
+    for creditcard.csv — preprocessing.py must look there first."""
+    with open(os.path.join(os.path.dirname(__file__), "preprocessing.py")) as f:
+        content = f.read()
+    raw_check_pos = content.find('"data", "raw", "creditcard.csv"')
+    assert raw_check_pos != -1, "preprocessing.py must check data/raw/creditcard.csv"
