@@ -24,14 +24,20 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 os.makedirs(os.path.join(BASE_DIR, "data", "raw"), exist_ok=True)
 os.makedirs(os.path.join(BASE_DIR, "data", "processed"), exist_ok=True)
 
-file_path = os.path.join(BASE_DIR, "creditcard.csv")
+# Check data/raw/ first (matches the directory this script creates),
+# then fall back to the repo root for backward compatibility.
+file_path = os.path.join(BASE_DIR, "data", "raw", "creditcard.csv")
 
 if not os.path.exists(file_path):
-    # Fallback to local cwd just in case
+    file_path = os.path.join(BASE_DIR, "creditcard.csv")
+
+if not os.path.exists(file_path):
     file_path = "creditcard.csv"
 
 if not os.path.exists(file_path):
-    raise FileNotFoundError("creditcard.csv not found. Please place it in the root folder.")
+    raise FileNotFoundError(
+        "creditcard.csv not found. Place it in data/raw/ or the project root."
+    )
 
 df = pd.read_csv(file_path)
 
