@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Added regression tests for data/raw fix and README accuracy guard
 - Fixed data/raw/ directory being created but never actually read by preprocessing.py
 - Rewrote README to match actual stack (Streamlit not React, XGBoost not GNN, no FastAPI/ChromaDB/LangChain) — see KNOWN_ISSUES.md
 - Fixed leftover "EDI" branding in SAR fallback template (now correctly says Aegis)
