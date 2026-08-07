@@ -184,8 +184,8 @@ Ensure the tone is objective, clinical, and highly professional. Avoid emotional
     return f"""======================================================================
 OFFICIAL SUSPICIOUS ACTIVITY REPORT (SAR) - DRAFT NARRATIVE
 ======================================================================
-Report Reference: SAR-2026-EDI-{np.random.randint(1000, 9999)}
-Filing Institution: EDI Compliance Operations Center
+Report Reference: SAR-2026-AEGIS-{np.random.randint(1000, 9999)}
+Filing Institution: Aegis Compliance Operations Center
 Subject Account: [Review Hold - Under Investigation]
 
 1. SUMMARY OF SUSPICIOUS ACTIVITY:
