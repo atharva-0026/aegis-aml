@@ -175,7 +175,8 @@ Ensure the tone is objective, clinical, and highly professional. Avoid emotional
             
         except Exception as e:
             # Fallback to local high-quality generator on API error
-            pass
+            import sys
+            print(f"[rag.py] Groq API call failed, using local fallback: {e}", file=sys.stderr)
 
     # High-quality Local Template Fallback (Guarantees app never crashes and looks gorgeous)
     override_reason = "the transaction exceeds absolute risk thresholds (₹50,000 rule)" if flagged_by_rules else f"the Machine Learning model identified an anomaly with {prob:.2%} confidence"
