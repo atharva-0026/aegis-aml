@@ -58,3 +58,13 @@ def test_narrative_uses_current_date_not_hardcoded():
     today = datetime.now().strftime("%Y-%m-%d")
     assert today in narrative
     assert "2026-05-21" not in narrative or today == "2026-05-21"
+
+
+def test_fraud_narrative_uses_aegis_branding_not_edi():
+    """Regression test: the fallback SAR template previously said 'EDI'
+    (a leftover project codename) instead of 'Aegis'."""
+    from rag import generate_narrative
+
+    narrative = generate_narrative(80000, 1000, "Fraud", 0.95, "transfer", "Dubai", True)
+    assert "EDI" not in narrative
+    assert "Aegis" in narrative
