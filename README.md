@@ -34,3 +34,10 @@ See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for a tracked train/inference feature mis
 pip install -r requirements.txt
 streamlit run app.py
 ```
+
+## Testing
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+35 tests covering inference, RAG retrieval, model artifacts, and utility functions.
