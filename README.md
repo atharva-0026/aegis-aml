@@ -39,4 +39,4 @@ streamlit run app.py
 pip install -r requirements-dev.txt
 pytest
 ```
-35 tests covering inference, RAG retrieval, model artifacts, and utility functions.
+38 tests covering inference, RAG retrieval, model artifacts, and utility functions.
