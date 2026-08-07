@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Rewrote README to match actual stack (Streamlit not React, XGBoost not GNN, no FastAPI/ChromaDB/LangChain) — see KNOWN_ISSUES.md
 - Fixed leftover "EDI" branding in SAR fallback template (now correctly says Aegis)
 - Fixed silently swallowed Groq API errors — now logged to stderr on fallback
 - Fixed unseeded random.choice() calls in preprocessing.py breaking full dataset reproducibility
