@@ -13,6 +13,9 @@ import plotly.graph_objects as go
 import joblib
 import os
 import sys
+import logging
+
+logger = logging.getLogger(__name__)
 from predict import predict_transaction
 from rag import generate_narrative, retrieve_regulatory_context, KNOWLEDGE_BASE
 from groq import Groq
@@ -259,7 +262,7 @@ def load_processed_data():
         if os.path.exists(path):
             return pd.read_csv(path)
     except Exception:
-        pass
+        logger.warning("Failed to load processed dataset, falling back to dummy data.", exc_info=True)
     # Generate dummy data if file fails to load
     np.random.seed(42)
     dummy_data = pd.DataFrame({
