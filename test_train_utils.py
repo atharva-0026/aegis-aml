@@ -68,3 +68,19 @@ def test_preprocessing_checks_data_raw_before_root():
         content = f.read()
     raw_check_pos = content.find('"data", "raw", "creditcard.csv"')
     assert raw_check_pos != -1, "preprocessing.py must check data/raw/creditcard.csv"
+
+
+def test_app_does_not_silently_swallow_dataset_load_errors():
+    """Regression test: app.py's load_processed_data() had a bare
+    except Exception: pass with no logging (bandit B110). It must now
+    log the failure before falling back to dummy data."""
+    with open(os.path.join(os.path.dirname(__file__), "app.py")) as f:
+        content = f.read()
+    idx = content.find("def load_processed_data")
+    assert idx != -1
+    snippet = content[idx: idx + 600]
+    assert "except Exception:" in snippet
+    assert "pass" not in snippet.split("except Exception:")[1].split("\n")[1], (
+        "load_processed_data's except block must not be a silent pass"
+    )
+    assert "logger." in snippet, "load_processed_data must log the failure"
