@@ -22,18 +22,14 @@ features = joblib.load(features_path)
 TRAIN_AMOUNT_BIN_EDGES = [-10.0, 2000.0, 4000.0, 6000.0, 8000.0, 10000.0]
 TRAIN_AMOUNT_MEAN = 87.5126602
 
+# Lazily constructed — SHAP's TreeExplainer setup has a small fixed cost,
+# no need to pay it on import for callers who never use explain_prediction.
+_explainer = None
 
-def predict_transaction(amount: float, time: float, threshold: float = 0.6) -> dict:
+
+def _build_features(amount: float, time: float) -> pd.DataFrame:
     """
-    Score a single transaction for AML risk.
-
-    Args:
-        amount: transaction amount
-        time: transaction time offset in seconds
-        threshold: probability cutoff for flagging as suspicious
-
-    Returns:
-        Risk prediction with probability score.
+    Build the model-ready feature row for a single transaction.
 
     Raises:
         ValueError: if amount or time is negative.
@@ -43,7 +39,6 @@ def predict_transaction(amount: float, time: float, threshold: float = 0.6) -> d
     if time < 0:
         raise ValueError(f"time must be non-negative, got {time}")
 
-    # Create features for inference
     data = pd.DataFrame([{
         'amount': amount,
         'time': time
@@ -69,8 +64,26 @@ def predict_transaction(amount: float, time: float, threshold: float = 0.6) -> d
     for col in features:
         if col not in data.columns:
             data[col] = 0
-            
-    data = data[features]
+
+    return data[features]
+
+
+def predict_transaction(amount: float, time: float, threshold: float = 0.6) -> dict:
+    """
+    Score a single transaction for AML risk.
+
+    Args:
+        amount: transaction amount
+        time: transaction time offset in seconds
+        threshold: probability cutoff for flagging as suspicious
+
+    Returns:
+        Risk prediction with probability score.
+
+    Raises:
+        ValueError: if amount or time is negative.
+    """
+    data = _build_features(amount, time)
 
     # Predict probability
     prob = float(model.predict_proba(data)[0][1])
@@ -91,6 +104,59 @@ def predict_transaction(amount: float, time: float, threshold: float = 0.6) -> d
         "flagged_by_rules": bool(rule_flag)
     }
 
+
+def explain_prediction(amount: float, time: float, top_n: int = 3) -> dict:
+    """
+    Explain a single transaction's ML risk score using SHAP.
+
+    Unlike the fixed rule-based flags in predict_transaction (hardcoded
+    amount thresholds), this shows which model features actually pushed
+    this specific prediction toward or away from "Fraud", using
+    TreeExplainer on the trained XGBoost model.
+
+    Args:
+        amount: transaction amount
+        time: transaction time offset in seconds
+        top_n: how many top contributing features to return
+
+    Returns:
+        {"top_factors": [{"feature": str, "shap_value": float}, ...]}
+        sorted by absolute contribution, most impactful first. Positive
+        shap_value pushes toward "Fraud", negative pushes toward "Normal".
+
+    Raises:
+        ValueError: if amount or time is negative.
+        ImportError: if the optional `shap` dependency isn't installed.
+    """
+    global _explainer
+
+    try:
+        import shap
+    except ImportError as e:
+        raise ImportError(
+            "explain_prediction requires the optional 'shap' dependency. "
+            "Install with: pip install shap"
+        ) from e
+
+    data = _build_features(amount, time)
+
+    if _explainer is None:
+        _explainer = shap.TreeExplainer(model)
+
+    shap_values = _explainer.shap_values(data)[0]
+
+    contributions = sorted(
+        zip(features, shap_values),
+        key=lambda pair: abs(pair[1]),
+        reverse=True,
+    )[:top_n]
+
+    return {
+        "top_factors": [
+            {"feature": name, "shap_value": round(float(value), 4)}
+            for name, value in contributions
+        ]
+    }
 
 
 if __name__ == "__main__":

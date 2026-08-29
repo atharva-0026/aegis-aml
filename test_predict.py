@@ -64,6 +64,40 @@ def test_negative_time_raises():
         predict_transaction(100, -1)
 
 
+def test_explain_prediction_returns_top_factors():
+    from predict import explain_prediction
+
+    result = explain_prediction(60000, 1000, top_n=3)
+    assert "top_factors" in result
+    assert len(result["top_factors"]) == 3
+    for factor in result["top_factors"]:
+        assert "feature" in factor
+        assert "shap_value" in factor
+        assert isinstance(factor["shap_value"], float)
+
+
+def test_explain_prediction_sorted_by_absolute_impact():
+    from predict import explain_prediction
+
+    result = explain_prediction(60000, 1000, top_n=5)
+    abs_values = [abs(f["shap_value"]) for f in result["top_factors"]]
+    assert abs_values == sorted(abs_values, reverse=True)
+
+
+def test_explain_prediction_respects_top_n():
+    from predict import explain_prediction
+
+    result = explain_prediction(1000, 5000, top_n=2)
+    assert len(result["top_factors"]) == 2
+
+
+def test_explain_prediction_raises_on_negative_amount():
+    from predict import explain_prediction
+
+    with pytest.raises(ValueError):
+        explain_prediction(-100, 1000)
+
+
 def test_amount_bin_matches_training_edges():
     """Regression test: amount_bin must use the same bin edges as
     preprocessing.py's training-time computation, not arbitrary fixed bins."""
