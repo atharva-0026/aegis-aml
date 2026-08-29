@@ -108,3 +108,38 @@ checked the repo root — `data/raw/` was dead: created, documented in
 
 **Fix:** `preprocessing.py` now checks `data/raw/creditcard.csv` first,
 falling back to the repo root for backward compatibility.
+
+---
+
+## Unpinned xgboost/scikit-learn risk breaking the live deployment
+
+**Status:** Mitigated (2026-08). Not fully resolved — see "long-term
+fix" below.
+
+`model.pkl` and `features.pkl` are loaded via `joblib.load()`, which
+pickles the exact internal object graph of whatever xgboost/scikit-learn
+version trained them. Loading `model.pkl` already emits:
+
+```
+UserWarning: If you are loading a serialized model (like pickle in
+Python, RDS in R)... please export the model by calling
+Booster.save_model() from that version first...
+```
+
+`requirements.txt` previously had no version bounds on `xgboost` or
+`scikit-learn` at all. Streamlit Community Cloud reinstalls dependencies
+fresh on every rebuild (redeploy, or periodic cache invalidation) — a
+new major xgboost/scikit-learn release landing on PyPI could silently
+break `joblib.load()` on the next rebuild, taking down the live demo
+with no code change on this end.
+
+**Mitigation applied:** pinned `scikit-learn>=1.4,<2.0` and
+`xgboost>=2.0,<4.0` in `requirements.txt` — compatible ranges around
+the versions the model was actually trained/verified against.
+
+**Long-term fix (not yet done):** migrate `predict.py`/`train.py` to
+xgboost's native `Booster.save_model()` / `Booster.load_model()`
+(JSON/UBJSON format), which is explicitly designed to be
+version-portable, instead of relying on pickle compatibility at all.
+This requires re-exporting the model and updating `predict.py`'s
+loading code — bigger change, deliberately not rushed into this pass.
