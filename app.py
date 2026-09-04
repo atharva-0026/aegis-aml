@@ -696,7 +696,7 @@ elif st.session_state.nav_option == "Batch Scan Centre":
                         # Predict
                         scores = []
                         decisions = []
-                        for idx, row in batch_df.iterrows():
+                        for _idx, row in batch_df.iterrows():
                             res = predict_transaction(row["amount"], row["time"], threshold=threshold)
                             scores.append(res["fraud_probability"])
                             decisions.append(res["prediction"])
