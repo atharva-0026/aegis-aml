@@ -146,7 +146,7 @@ def explain_prediction(amount: float, time: float, top_n: int = 3) -> dict:
     shap_values = _explainer.shap_values(data)[0]
 
     contributions = sorted(
-        zip(features, shap_values),
+        zip(features, shap_values, strict=True),
         key=lambda pair: abs(pair[1]),
         reverse=True,
     )[:top_n]
