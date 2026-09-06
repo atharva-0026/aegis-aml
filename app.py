@@ -697,9 +697,20 @@ elif st.session_state.nav_option == "Batch Scan Centre":
                         scores = []
                         decisions = []
                         for _idx, row in batch_df.iterrows():
-                            res = predict_transaction(row["amount"], row["time"], threshold=threshold)
-                            scores.append(res["fraud_probability"])
-                            decisions.append(res["prediction"])
+                            # predict_transaction() raises ValueError for
+                            # negative amount/time - without this
+                            # try/except, a single bad row (data entry
+                            # error, a refund represented as a negative
+                            # amount, etc.) crashed the ENTIRE batch scan
+                            # with a raw traceback, losing all processing
+                            # done on every other row too.
+                            try:
+                                res = predict_transaction(row["amount"], row["time"], threshold=threshold)
+                                scores.append(res["fraud_probability"])
+                                decisions.append(res["prediction"])
+                            except (ValueError, TypeError) as e:
+                                scores.append(None)
+                                decisions.append(f"Error: {e}")
                             
                         batch_df["Anomaly Probability"] = scores
                         batch_df["Decision Audit"] = decisions
@@ -708,7 +719,12 @@ elif st.session_state.nav_option == "Batch Scan Centre":
                         
                         # Style flagged rows as red
                         def color_fraud(val):
-                            color = 'rgba(239, 68, 68, 0.2)' if val == 'Fraud' else 'rgba(0,0,0,0)'
+                            if isinstance(val, str) and val.startswith("Error:"):
+                                color = 'rgba(234, 179, 8, 0.25)'  # amber - distinct from fraud red
+                            elif val == 'Fraud':
+                                color = 'rgba(239, 68, 68, 0.2)'
+                            else:
+                                color = 'rgba(0,0,0,0)'
                             return f'background-color: {color}'
                         
                         st.dataframe(batch_df.style.map(color_fraud, subset=['Decision Audit']), use_container_width=True)
