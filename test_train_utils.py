@@ -78,7 +78,7 @@ def test_app_does_not_silently_swallow_dataset_load_errors():
         content = f.read()
     idx = content.find("def load_processed_data")
     assert idx != -1
-    snippet = content[idx: idx + 600]
+    snippet = content[idx: idx + 900]
     assert "except Exception:" in snippet
     assert "pass" not in snippet.split("except Exception:")[1].split("\n")[1], (
         "load_processed_data's except block must not be a silent pass"

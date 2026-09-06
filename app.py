@@ -260,7 +260,18 @@ def load_processed_data():
     try:
         path = os.path.join(BASE_DIR, "data", "processed", "sar_dataset.csv")
         if os.path.exists(path):
-            return pd.read_csv(path)
+            loaded = pd.read_csv(path)
+            # A header-only or otherwise empty (but structurally valid)
+            # CSV parses successfully with 0 rows - no exception raised,
+            # so this must be checked explicitly. Without it, the
+            # Executive Dashboard's fraud_rate = (fraud_count / total_tx)
+            # crashes with ZeroDivisionError on total_tx=0, since the
+            # dummy-data fallback below would never trigger.
+            if len(loaded) > 0:
+                return loaded
+            logger.warning(
+                "Processed dataset exists but has 0 rows, falling back to dummy data."
+            )
     except Exception:
         logger.warning("Failed to load processed dataset, falling back to dummy data.", exc_info=True)
     # Generate dummy data if file fails to load
