@@ -184,35 +184,3 @@ returns real accuracy/F1/confusion-matrix values — then have `app.py`
 call it once per session (cached via `st.cache_data`) instead of
 hardcoding the panel's contents.
 
----
-
-## Model Training Logistics panel shows hardcoded, not live, metrics
-
-**Status:** Documented (2026-09). Not fixed — deliberately, see below.
-
-The "Model Training Logistics" section of the Model & Knowledge Base
-page (app.py) displays a hardcoded accuracy figure ("Accuracy: 99.63%")
-and a hardcoded confusion matrix (`z = [[19958, 9], [1, 32]]`) baked
-into the UI code itself, not computed from the actual current
-`model.pkl` on every page load.
-
-**Risk:** if the model is ever retrained via `train.py` with different
-data, hyperparameters, or a different train/test split, this panel
-will silently continue showing the old numbers with zero indication
-they're stale or disconnected from what's actually deployed.
-
-**Why this isn't fixed yet:** computing genuinely live metrics would
-mean loading a held-out test set and running predictions on every page
-load (or caching that computation with its own invalidation logic) —
-a real feature addition, not a one-line bug fix. Rather than guess at
-the right scope for that (which test set? recomputed how often? cached
-where?), this is flagged here so it's a known, deliberate limitation
-instead of an invisible one.
-
-**If revisited:** the cleanest approach is likely to persist the
-actual evaluation metrics computed at the end of `train.py` (it already
-prints `accuracy_score`/`classification_report`/`confusion_matrix` to
-stdout) into a small JSON file alongside `model.pkl`, then have `app.py`
-read and display that file instead of hardcoded values — keeps the
-Streamlit page fast (no runtime inference needed) while making the
-displayed numbers actually reflect whatever model is currently deployed.
