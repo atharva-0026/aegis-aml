@@ -845,6 +845,12 @@ else:
         """, unsafe_allow_html=True)
         
         # Static Confusion Matrix visualization
+        # NOTE: these values (and the "Accuracy: 99.63%" etc. above) are
+        # hardcoded from whenever this UI was written, NOT computed live
+        # from the actual current model.pkl. If the model is ever
+        # retrained via train.py with different data/hyperparameters,
+        # this panel will silently show stale numbers with no
+        # indication they're frozen. See KNOWN_ISSUES.md.
         st.markdown("<strong>Diagnostic Confusion Matrix Heatmap</strong>", unsafe_allow_html=True)
         z = [[19958, 9], [1, 32]]
         x = ['Normal (Pred)', 'Fraud (Pred)']
