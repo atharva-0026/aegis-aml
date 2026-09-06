@@ -84,3 +84,22 @@ def test_app_does_not_silently_swallow_dataset_load_errors():
         "load_processed_data's except block must not be a silent pass"
     )
     assert "logger." in snippet, "load_processed_data must log the failure"
+
+
+def test_batch_scan_does_not_crash_on_single_invalid_row():
+    """Regression test: the batch scan loop in app.py previously called
+    predict_transaction() with no error handling. Since
+    predict_transaction() raises ValueError for negative amount/time, a
+    single bad row anywhere in an uploaded CSV crashed the ENTIRE batch
+    scan, losing all processing on every other row too. Must catch and
+    mark that specific row as an error instead of crashing."""
+    with open(os.path.join(os.path.dirname(__file__), "app.py")) as f:
+        content = f.read()
+    idx = content.find("for _idx, row in batch_df.iterrows()")
+    assert idx != -1, "expected the batch scan loop in app.py"
+    snippet = content[idx: idx + 700]
+    assert "try:" in snippet, "batch scan loop must handle per-row prediction errors"
+    assert "except" in snippet
+    assert "predict_transaction" in snippet.split("try:")[1], (
+        "predict_transaction call must be inside the try block, not before it"
+    )
