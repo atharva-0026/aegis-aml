@@ -143,3 +143,43 @@ xgboost's native `Booster.save_model()` / `Booster.load_model()`
 version-portable, instead of relying on pickle compatibility at all.
 This requires re-exporting the model and updating `predict.py`'s
 loading code — bigger change, deliberately not rushed into this pass.
+
+---
+
+## Model metrics panel shows hardcoded, not live, numbers
+
+**Status:** Open — flagged, not fixed. Documenting the risk rather than
+rushing a bigger feature.
+
+The "Model Training Logistics" panel in `app.py` (Module 6) displays
+static text — "Accuracy: 99.63%", "F1-Score: 0.87" — and a hardcoded
+confusion matrix (`z = [[19958, 9], [1, 32]]`) for the heatmap
+visualization. None of this is computed from the actual current
+`model.pkl`; it's frozen from whenever this UI section was written.
+
+**Risk:** if the model is ever retrained via `train.py` with different
+data, hyperparameters, or even just a different random seed, this
+panel will silently continue showing the old numbers with zero
+indication they're stale or disconnected from what's actually deployed.
+A user reading this panel has no way to tell "these are real current
+metrics" from "these are frozen from an earlier training run."
+
+**Why not fixed now:** computing genuinely live metrics would mean
+loading a held-out test set at runtime, running predictions through
+the current model, and rendering the real confusion matrix/accuracy —
+a real feature addition (deciding on a canonical held-out set, handling
+the load-time cost on every page view, etc.), not a small bug fix. That
+deserves its own deliberate pass rather than a rushed implementation
+bundled into an unrelated fix.
+
+**Interim mitigation applied:** added a code comment directly above the
+hardcoded values in `app.py` explaining they're static, so a future
+contributor immediately sees the caveat instead of assuming the numbers
+are live.
+
+**Proper fix (future work):** add a small `evaluate_model()` helper
+(likely in `train_utils.py` alongside `FEATURE_COLUMNS`) that loads a
+fixed held-out test split, scores it with the current `model.pkl`, and
+returns real accuracy/F1/confusion-matrix values — then have `app.py`
+call it once per session (cached via `st.cache_data`) instead of
+hardcoding the panel's contents.
