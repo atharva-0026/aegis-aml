@@ -68,3 +68,32 @@ def test_fraud_narrative_uses_aegis_branding_not_edi():
     narrative = generate_narrative(80000, 1000, "Fraud", 0.95, "transfer", "Dubai", True)
     assert "EDI" not in narrative
     assert "Aegis" in narrative
+
+
+def test_narrative_correctly_cites_fifty_thousand_rule_when_amount_exceeds_it():
+    from rag import generate_narrative
+
+    narrative = generate_narrative(60000, 40000, "Fraud", 0.9, flagged_by_rules=True)
+    assert "₹50,000 rule" in narrative
+
+
+def test_narrative_does_not_falsely_claim_fifty_thousand_rule_for_smaller_amount():
+    """Regression test: predict.py's rule_flag is
+    amount > 50000 OR (amount > 30000 AND time < 5000) - two distinct
+    conditions. The old narrative always cited the ₹50,000 threshold
+    whenever flagged_by_rules was True, even for a transaction flagged
+    via the second (smaller-amount) condition. A ₹35,000 transaction
+    must not have its narrative falsely claim it exceeded ₹50,000."""
+    from rag import generate_narrative
+
+    narrative = generate_narrative(35000, 2000, "Fraud", 0.001, flagged_by_rules=True)
+    assert "exceeds absolute risk thresholds (₹50,000 rule)" not in narrative
+    assert "35,000" in narrative
+
+
+def test_narrative_ml_flagged_case_still_cites_model_confidence():
+    from rag import generate_narrative
+
+    narrative = generate_narrative(5000, 40000, "Fraud", 0.85, flagged_by_rules=False)
+    assert "85.00%" in narrative
+    assert "₹50,000 rule" not in narrative
