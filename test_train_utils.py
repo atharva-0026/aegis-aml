@@ -103,3 +103,23 @@ def test_batch_scan_does_not_crash_on_single_invalid_row():
     assert "predict_transaction" in snippet.split("try:")[1], (
         "predict_transaction call must be inside the try block, not before it"
     )
+
+
+def test_hardcoded_model_metrics_staleness_is_documented():
+    """Regression test: app.py's Model & Knowledge Base panel shows
+    hardcoded (not live) accuracy/confusion-matrix numbers. This isn't
+    fixed (see KNOWN_ISSUES.md for why), but the code comment flagging
+    it must stay in place so the limitation stays visible to anyone
+    editing this section, and KNOWN_ISSUES.md must keep tracking it."""
+    with open(os.path.join(os.path.dirname(__file__), "app.py")) as f:
+        app_content = f.read()
+    idx = app_content.find("Diagnostic Confusion Matrix Heatmap")
+    assert idx != -1
+    nearby = app_content[max(0, idx - 500): idx]
+    assert "NOTE" in nearby and "hardcoded" in nearby.lower(), (
+        "the staleness-risk comment must stay near the confusion matrix code"
+    )
+
+    with open(os.path.join(os.path.dirname(__file__), "KNOWN_ISSUES.md")) as f:
+        known_issues = f.read()
+    assert "hardcoded, not live" in known_issues.lower() or "hardcoded" in known_issues.lower()

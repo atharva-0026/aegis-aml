@@ -183,3 +183,4 @@ fixed held-out test split, scores it with the current `model.pkl`, and
 returns real accuracy/F1/confusion-matrix values — then have `app.py`
 call it once per session (cached via `st.cache_data`) instead of
 hardcoding the panel's contents.
+
