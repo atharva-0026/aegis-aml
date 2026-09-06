@@ -179,7 +179,25 @@ Ensure the tone is objective, clinical, and highly professional. Avoid emotional
             print(f"[rag.py] Groq API call failed, using local fallback: {e}", file=sys.stderr)
 
     # High-quality Local Template Fallback (Guarantees app never crashes and looks gorgeous)
-    override_reason = "the transaction exceeds absolute risk thresholds (₹50,000 rule)" if flagged_by_rules else f"the Machine Learning model identified an anomaly with {prob:.2%} confidence"
+    if flagged_by_rules:
+        # Must match predict.py's actual rule exactly:
+        # rule_flag = amount > 50000 or (amount > 30000 and time < 5000)
+        # The old code always said "exceeds ₹50,000" regardless of
+        # which condition actually fired. A transaction flagged via the
+        # second condition (e.g. ₹35,000 at an early timestamp) would
+        # generate a SAR narrative falsely claiming it exceeded
+        # ₹50,000 - a real accuracy problem in a document meant to be
+        # "legally sound" (see the Groq prompt's own framing above).
+        if amount > 50000:
+            override_reason = "the transaction exceeds absolute risk thresholds (₹50,000 rule)"
+        else:
+            override_reason = (
+                f"the transaction amount (₹{amount:,.2f}) exceeds ₹30,000 combined with an "
+                f"early time-offset ({time}), triggering the compliance policy's high-amount/"
+                f"early-transaction override rule"
+            )
+    else:
+        override_reason = f"the Machine Learning model identified an anomaly with {prob:.2%} confidence"
     
     return f"""======================================================================
 OFFICIAL SUSPICIOUS ACTIVITY REPORT (SAR) - DRAFT NARRATIVE
