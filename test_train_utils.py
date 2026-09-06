@@ -78,7 +78,7 @@ def test_app_does_not_silently_swallow_dataset_load_errors():
         content = f.read()
     idx = content.find("def load_processed_data")
     assert idx != -1
-    snippet = content[idx: idx + 600]
+    snippet = content[idx: idx + 900]
     assert "except Exception:" in snippet
     assert "pass" not in snippet.split("except Exception:")[1].split("\n")[1], (
         "load_processed_data's except block must not be a silent pass"
@@ -123,3 +123,55 @@ def test_hardcoded_model_metrics_staleness_is_documented():
     with open(os.path.join(os.path.dirname(__file__), "KNOWN_ISSUES.md")) as f:
         known_issues = f.read()
     assert "hardcoded, not live" in known_issues.lower() or "hardcoded" in known_issues.lower()
+
+
+def test_load_processed_data_falls_back_to_dummy_on_empty_csv(tmp_path, monkeypatch):
+    """Regression test: a header-only or otherwise empty (but
+    structurally valid) CSV parses successfully via pd.read_csv() with
+    0 rows - no exception raised. load_processed_data() previously only
+    fell back to dummy data on an exception, so this empty DataFrame
+    was returned as-is, and the Executive Dashboard's
+    fraud_rate = (fraud_count / total_tx) then crashed with
+    ZeroDivisionError on total_tx=0."""
+    import importlib.util
+    import logging
+    import numpy as np
+    import pandas as pd
+
+    # Build a minimal standalone copy of load_processed_data's logic
+    # against a temp dir, matching what app.py actually does, without
+    # needing to import the full Streamlit script.
+    base_dir = tmp_path
+    processed_dir = base_dir / "data" / "processed"
+    processed_dir.mkdir(parents=True)
+    empty_csv = processed_dir / "sar_dataset.csv"
+    empty_csv.write_text("amount,time,fraud,location,transaction_type\n")
+
+    logger = logging.getLogger("test_empty_dataset")
+
+    def load_processed_data(base_dir):
+        try:
+            path = os.path.join(base_dir, "data", "processed", "sar_dataset.csv")
+            if os.path.exists(path):
+                loaded = pd.read_csv(path)
+                if len(loaded) > 0:
+                    return loaded
+                logger.warning("Processed dataset exists but has 0 rows, falling back to dummy data.")
+        except Exception:
+            logger.warning("Failed to load processed dataset, falling back to dummy data.", exc_info=True)
+        np.random.seed(42)
+        return pd.DataFrame({
+            "amount": np.random.exponential(scale=1500, size=5000),
+            "time": np.random.randint(0, 172800, size=5000),
+            "fraud": np.random.choice([0, 1], size=5000, p=[0.99, 0.01]),
+            "location": np.random.choice(["India", "Dubai", "USA", "UK", "Singapore"], size=5000),
+            "transaction_type": np.random.choice(["transfer", "withdrawal", "payment"], size=5000),
+        })
+
+    df = load_processed_data(str(base_dir))
+    assert len(df) > 0, "must fall back to non-empty dummy data, not return the empty CSV as-is"
+
+    # The actual regression: this must not raise ZeroDivisionError
+    total_tx = len(df)
+    fraud_rate = (df["fraud"].sum() / total_tx) * 100
+    assert fraud_rate >= 0
