@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # Python dependencies (requirements.txt, requirements-dev.txt).
+  # NOTE: xgboost and scikit-learn are deliberately version-pinned
+  # (see KNOWN_ISSUES.md - model.pkl pickle compatibility risk on the
+  # live Streamlit Cloud deployment). Review any Dependabot PR touching
+  # those two packages carefully before merging - a major-version bump
+  # could reintroduce the pickle-compat issue this pin exists to avoid.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+
+  # GitHub Actions versions (actions/checkout, actions/setup-python)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
