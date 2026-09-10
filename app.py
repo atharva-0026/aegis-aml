@@ -432,7 +432,9 @@ if st.session_state.nav_option == "Executive Dashboard":
     # Bottom Row: Model Feature Importances
     st.markdown("<h3 style='color:#38bdf8;'>XGBoost Feature Importance Log</h3>", unsafe_allow_html=True)
     try:
-        model = joblib.load(os.path.join(BASE_DIR, "model.pkl"))
+        import xgboost as xgb
+        model = xgb.XGBClassifier()
+        model.load_model(os.path.join(BASE_DIR, "model.json"))
         features = joblib.load(os.path.join(BASE_DIR, "features.pkl"))
         importances = model.feature_importances_
         feat_df = pd.DataFrame({'Feature': features, 'Importance': importances}).sort_values('Importance', ascending=True)
@@ -453,7 +455,7 @@ if st.session_state.nav_option == "Executive Dashboard":
         )
         st.plotly_chart(fig_bar, use_container_width=True)
     except Exception:
-        st.info("Feature importance currently offline. Please ensure the model.pkl is trained successfully.")
+        st.info("Feature importance currently offline. Please ensure the model.json is trained successfully.")
 
 # ==========================================
 # MODULE 2: SINGLE TRANSACTION SCAN
@@ -858,7 +860,7 @@ else:
         # Static Confusion Matrix visualization
         # NOTE: these values (and the "Accuracy: 99.63%" etc. above) are
         # hardcoded from whenever this UI was written, NOT computed live
-        # from the actual current model.pkl. If the model is ever
+        # from the actual current model.json. If the model is ever
         # retrained via train.py with different data/hyperparameters,
         # this panel will silently show stale numbers with no
         # indication they're frozen. See KNOWN_ISSUES.md.

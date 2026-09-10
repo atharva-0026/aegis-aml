@@ -8,12 +8,21 @@ import os
 import joblib
 import pandas as pd
 import numpy as np
+import xgboost as xgb
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-model_path = os.path.join(BASE_DIR, "model.pkl")
+model_path = os.path.join(BASE_DIR, "model.json")
 features_path = os.path.join(BASE_DIR, "features.pkl")
 
-model = joblib.load(model_path)
+# Native XGBoost format (JSON/UBJSON), not joblib/pickle - explicitly
+# designed by XGBoost to be version-portable across releases, unlike
+# pickling the sklearn wrapper object. Loading model.pkl used to emit:
+#   UserWarning: If you are loading a serialized model (like pickle in
+#   Python...) please export the model by calling Booster.save_model()
+# See KNOWN_ISSUES.md for the full history - this migration resolves
+# it rather than just pinning around it.
+model = xgb.XGBClassifier()
+model.load_model(model_path)
 features = joblib.load(features_path)
 
 # Exact bin edges and mean derived from data/processed/sar_dataset.csv
