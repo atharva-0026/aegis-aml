@@ -79,7 +79,10 @@ print("\n Confusion Matrix:")
 print(confusion_matrix(y_test, y_pred))
 
 
-joblib.dump(model, os.path.join(BASE_DIR, "model.pkl"))
+# Native format (JSON), not joblib/pickle - see KNOWN_ISSUES.md and
+# predict.py for why. features.pkl stays as joblib since it's a plain
+# Python list with no pickle-compat risk tied to xgboost internals.
+model.save_model(os.path.join(BASE_DIR, "model.json"))
 joblib.dump(features, os.path.join(BASE_DIR, "features.pkl"))
 
 print(" Model Saved")

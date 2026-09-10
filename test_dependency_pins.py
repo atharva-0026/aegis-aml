@@ -1,9 +1,10 @@
 """
 Regression test: requirements.txt previously had no version bounds on
-xgboost or scikit-learn, even though model.pkl already emits a pickle
-compatibility UserWarning on load. An unpinned future major release
-could silently break the live Streamlit Cloud deployment on next
-rebuild. See KNOWN_ISSUES.md for the full writeup.
+xgboost or scikit-learn. That mattered a lot more before the model
+storage format migration (model.pkl -> model.json, see
+KNOWN_ISSUES.md) - the pins are now defense-in-depth rather than the
+only thing preventing a live-deployment break, but still worth
+keeping in place.
 """
 import os
 import re

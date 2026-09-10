@@ -1,11 +1,11 @@
 version: 2
 updates:
   # Python dependencies (requirements.txt, requirements-dev.txt).
-  # NOTE: xgboost and scikit-learn are deliberately version-pinned
-  # (see KNOWN_ISSUES.md - model.pkl pickle compatibility risk on the
-  # live Streamlit Cloud deployment). Review any Dependabot PR touching
-  # those two packages carefully before merging - a major-version bump
-  # could reintroduce the pickle-compat issue this pin exists to avoid.
+  # xgboost/scikit-learn are pinned as defense-in-depth (see
+  # KNOWN_ISSUES.md), but the pickle-compatibility risk they originally
+  # guarded against was resolved by migrating model.pkl to XGBoost's
+  # native format (model.json) - so a version bump here is lower-risk
+  # than it used to be, just still worth a normal careful review.
   - package-ecosystem: "pip"
     directory: "/"
     schedule:

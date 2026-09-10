@@ -111,14 +111,13 @@ falling back to the repo root for backward compatibility.
 
 ---
 
-## Unpinned xgboost/scikit-learn risk breaking the live deployment
+## xgboost/scikit-learn pickle-compatibility risk (model.pkl)
 
-**Status:** Mitigated (2026-08). Not fully resolved — see "long-term
-fix" below.
+**Status:** Resolved (2026-09). Fully fixed, not just mitigated.
 
-`model.pkl` and `features.pkl` are loaded via `joblib.load()`, which
-pickles the exact internal object graph of whatever xgboost/scikit-learn
-version trained them. Loading `model.pkl` already emits:
+`model.pkl` was loaded via `joblib.load()`, which pickles the exact
+internal object graph of whatever xgboost/scikit-learn version trained
+it. Loading it emitted:
 
 ```
 UserWarning: If you are loading a serialized model (like pickle in
@@ -127,22 +126,34 @@ Booster.save_model() from that version first...
 ```
 
 `requirements.txt` previously had no version bounds on `xgboost` or
-`scikit-learn` at all. Streamlit Community Cloud reinstalls dependencies
-fresh on every rebuild (redeploy, or periodic cache invalidation) — a
-new major xgboost/scikit-learn release landing on PyPI could silently
-break `joblib.load()` on the next rebuild, taking down the live demo
-with no code change on this end.
+`scikit-learn` at all. Streamlit Community Cloud reinstalls
+dependencies fresh on every rebuild — a new major xgboost/scikit-learn
+release could have silently broken `joblib.load()` on the next
+rebuild, taking down the live demo with no code change on this end.
 
-**Mitigation applied:** pinned `scikit-learn>=1.4,<2.0` and
-`xgboost>=2.0,<4.0` in `requirements.txt` — compatible ranges around
-the versions the model was actually trained/verified against.
+**Interim mitigation (superseded):** pinned `scikit-learn>=1.4,<2.0`
+and `xgboost>=2.0,<4.0` — bought time but didn't fix the root cause.
 
-**Long-term fix (not yet done):** migrate `predict.py`/`train.py` to
-xgboost's native `Booster.save_model()` / `Booster.load_model()`
-(JSON/UBJSON format), which is explicitly designed to be
-version-portable, instead of relying on pickle compatibility at all.
-This requires re-exporting the model and updating `predict.py`'s
-loading code — bigger change, deliberately not rushed into this pass.
+**Actual fix:** migrated `predict.py`/`train.py`/`app.py` to
+`XGBClassifier.save_model()`/`.load_model()` (native JSON format),
+which is explicitly designed by XGBoost to be version-portable, instead
+of relying on pickle compatibility. `model.pkl` was replaced with
+`model.json`.
+
+Verified before merging:
+- Loaded the real model via both the old (`joblib`) and new (native)
+  paths and confirmed **byte-identical predictions and SHAP values**
+- Confirmed the pickle-compat `UserWarning` no longer fires at all —
+  `test_loading_model_json_emits_no_pickle_compat_warning` asserts this
+- Booted the actual Streamlit app locally with the migrated model —
+  feature importance panel, single scan, and SHAP explainability all
+  work correctly
+- Full suite: 52/52 pass
+
+The `scikit-learn`/`xgboost` version pins in `requirements.txt` remain
+in place as defense-in-depth (no reason to widen them just because the
+underlying risk is gone), but the actual fragility they were guarding
+against no longer exists.
 
 ---
 
