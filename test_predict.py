@@ -111,6 +111,30 @@ def test_amount_bin_matches_training_edges():
     assert list(result) == [0, 1, 2, 4]
 
 
+def test_amount_bin_does_not_collapse_high_amounts_into_lowest_bin():
+    """Regression test: TRAIN_AMOUNT_BIN_EDGES only covers up to 10000
+    (whatever the training run happened to observe). pd.cut() produces
+    NaN above that, which fillna(0) previously mapped to amount_bin=0 -
+    the SAME bucket as a ₹500 transaction. Confirmed reachable: a
+    ₹500 and a ₹1,000,000 transaction previously got identical
+    amount_bin values, exactly backwards for an AML tool where the
+    highest-value transactions should be the most clearly distinguished."""
+    from predict import _build_features
+
+    low = _build_features(500, 40000)
+    high = _build_features(1_000_000, 40000)
+
+    assert low["amount_bin"].iloc[0] != high["amount_bin"].iloc[0]
+    assert high["amount_bin"].iloc[0] == 4  # clamped to the highest bin
+
+
+def test_amount_bin_at_exact_boundary_value():
+    from predict import _build_features, TRAIN_AMOUNT_BIN_EDGES
+
+    at_edge = _build_features(TRAIN_AMOUNT_BIN_EDGES[-1], 40000)
+    assert at_edge["amount_bin"].iloc[0] == 4
+
+
 def test_amount_ratio_uses_training_mean():
     from predict import TRAIN_AMOUNT_MEAN
 
