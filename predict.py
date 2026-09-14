@@ -65,6 +65,19 @@ def _build_features(amount: float, time: float) -> pd.DataFrame:
     data['amount_bin'] = pd.cut(
         data['amount'], bins=TRAIN_AMOUNT_BIN_EDGES, labels=False, include_lowest=True
     )
+    # pd.cut() produces NaN for any value outside the fixed edges above
+    # (training used dynamic equal-width bins spanning that run's
+    # actual min/max, so every training row got a valid bin - this
+    # fixed-edge version only covers what training happened to observe,
+    # up to TRAIN_AMOUNT_BIN_EDGES[-1] = 10000). Without this, any
+    # inference-time amount above 10000 - exactly the highest-risk,
+    # highest-value transactions this tool exists to flag - silently
+    # collapsed via fillna(0) into amount_bin=0, the SAME bucket as a
+    # ₹500 transaction. Confirmed reachable: _build_features(500, ...)
+    # and _build_features(1_000_000, ...) previously produced identical
+    # amount_bin values. Clamp to the highest bin instead.
+    highest_bin_index = len(TRAIN_AMOUNT_BIN_EDGES) - 2
+    data.loc[data['amount'] > TRAIN_AMOUNT_BIN_EDGES[-1], 'amount_bin'] = highest_bin_index
     data['amount_ratio'] = data['amount'] / TRAIN_AMOUNT_MEAN
 
     data.fillna(0, inplace=True)
