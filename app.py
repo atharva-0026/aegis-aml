@@ -16,7 +16,8 @@ import sys
 import logging
 
 logger = logging.getLogger(__name__)
-from predict import predict_transaction
+from predict import predict_transaction, model as trained_model
+from train_utils import evaluate_model
 from rag import generate_narrative, retrieve_regulatory_context, KNOWLEDGE_BASE
 from groq import Groq
 
@@ -838,34 +839,37 @@ elif st.session_state.nav_option == "Compliance Copilot":
 # ==========================================
 else:
     st.markdown("<div class='terminal-header'><h1> MODEL METRICS & COMPLIANCE KNOWLEDGE BASE</h1></div>", unsafe_allow_html=True)
-    
+
     col_m, col_k = st.columns(2)
-    
+
     with col_m:
         st.markdown("<h3 style='color:#38bdf8;'> Model Training Logistics</h3>", unsafe_allow_html=True)
-        st.markdown("""
+
+        # Computed live from the current model.json against the same
+        # held-out split train.py evaluates against, so this panel can
+        # never silently drift from what's actually deployed. See
+        # KNOWN_ISSUES.md and train_utils.evaluate_model().
+        @st.cache_data(show_spinner="Scoring current model against held-out set...")
+        def _load_live_model_metrics(_model):
+            return evaluate_model(BASE_DIR, _model)
+
+        live_metrics = _load_live_model_metrics(trained_model)
+
+        st.markdown(f"""
         <div class='glass-card'>
             <strong>Classifier:</strong> XGBoost (Extreme Gradient Boosting)<br/>
             <strong>Hyperparameters:</strong> n_estimators=300, max_depth=6, learning_rate=0.05<br/>
             <strong>Oversampling Strategy:</strong> SMOTE (Synthetic Minority Over-sampling Technique)<br/>
-            <strong>Evaluation Summary:</strong>
+            <strong>Live Evaluation Summary</strong> (current model.json, held-out test split):
             <ul>
-                <li>Accuracy: 99.63%</li>
-                <li>Minority (Fraud) Recall: ~97% (SMOTE)</li>
-                <li>F1-Score: 0.87</li>
+                <li>Accuracy: {live_metrics['accuracy']:.2%}</li>
+                <li>F1-Score: {live_metrics['f1_score']:.2f}</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
-        
-        # Static Confusion Matrix visualization
-        # NOTE: these values (and the "Accuracy: 99.63%" etc. above) are
-        # hardcoded from whenever this UI was written, NOT computed live
-        # from the actual current model.json. If the model is ever
-        # retrained via train.py with different data/hyperparameters,
-        # this panel will silently show stale numbers with no
-        # indication they're frozen. See KNOWN_ISSUES.md.
+
         st.markdown("<strong>Diagnostic Confusion Matrix Heatmap</strong>", unsafe_allow_html=True)
-        z = [[19958, 9], [1, 32]]
+        z = live_metrics['confusion_matrix']
         x = ['Normal (Pred)', 'Fraud (Pred)']
         y = ['Normal (True)', 'Fraud (True)']
         

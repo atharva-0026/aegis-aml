@@ -24,7 +24,13 @@ if sys.platform.startswith('win'):
         pass
 
 
-from train_utils import resolve_dataset_path, FEATURE_COLUMNS
+from train_utils import (
+    CLASSIFICATION_THRESHOLD,
+    RANDOM_STATE,
+    TEST_SIZE,
+    resolve_dataset_path,
+    FEATURE_COLUMNS,
+)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 file_path = resolve_dataset_path(BASE_DIR)
@@ -41,7 +47,7 @@ y = df['fraud']
 
 
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y
+    X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
 )
 
 
@@ -57,7 +63,7 @@ model = xgb.XGBClassifier(
     max_depth=6,
     learning_rate=0.05,
     n_jobs=-1,
-    random_state=42,
+    random_state=RANDOM_STATE,
     eval_metric='logloss'
 )
 
@@ -68,8 +74,7 @@ print(" Model Trained")
 
 y_probs = model.predict_proba(X_test)[:, 1]
 
-threshold = 0.9
-y_pred = (y_probs > threshold).astype(int)
+y_pred = (y_probs > CLASSIFICATION_THRESHOLD).astype(int)
 
 
 print("\n Accuracy:", accuracy_score(y_test, y_pred))

@@ -105,24 +105,58 @@ def test_batch_scan_does_not_crash_on_single_invalid_row():
     )
 
 
-def test_hardcoded_model_metrics_staleness_is_documented():
-    """Regression test: app.py's Model & Knowledge Base panel shows
-    hardcoded (not live) accuracy/confusion-matrix numbers. This isn't
-    fixed (see KNOWN_ISSUES.md for why), but the code comment flagging
-    it must stay in place so the limitation stays visible to anyone
-    editing this section, and KNOWN_ISSUES.md must keep tracking it."""
+def test_model_metrics_panel_is_computed_live_not_hardcoded():
+    """Regression test: app.py's Model & Knowledge Base panel used to
+    show hardcoded accuracy/confusion-matrix numbers frozen from
+    whenever the UI was written, silently drifting from whatever
+    model.json actually had. It must now call
+    train_utils.evaluate_model() against the live model instead of
+    hardcoding numbers. See KNOWN_ISSUES.md."""
     with open(os.path.join(os.path.dirname(__file__), "app.py")) as f:
         app_content = f.read()
     idx = app_content.find("Diagnostic Confusion Matrix Heatmap")
     assert idx != -1
-    nearby = app_content[max(0, idx - 500): idx]
-    assert "NOTE" in nearby and "hardcoded" in nearby.lower(), (
-        "the staleness-risk comment must stay near the confusion matrix code"
+    nearby = app_content[max(0, idx - 1500): idx]
+    assert "evaluate_model" in nearby, (
+        "the confusion matrix must be sourced from evaluate_model(), not hardcoded"
+    )
+    assert "z = [[19958, 9], [1, 32]]" not in app_content, (
+        "the old frozen confusion matrix values must be gone"
+    )
+    assert "Accuracy: 99.63%" not in app_content, (
+        "the old frozen accuracy value must be gone"
     )
 
-    with open(os.path.join(os.path.dirname(__file__), "KNOWN_ISSUES.md")) as f:
-        known_issues = f.read()
-    assert "hardcoded, not live" in known_issues.lower() or "hardcoded" in known_issues.lower()
+
+def test_evaluate_model_returns_expected_shape():
+    """evaluate_model() must return real, current accuracy/F1/confusion-
+    matrix values for the current model.json, scored against the same
+    held-out split train.py uses."""
+    import xgboost as xgb
+    from train_utils import evaluate_model
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    model = xgb.XGBClassifier()
+    model.load_model(os.path.join(base_dir, "model.json"))
+
+    result = evaluate_model(base_dir, model)
+
+    assert 0.0 <= result["accuracy"] <= 1.0
+    assert 0.0 <= result["f1_score"] <= 1.0
+    cm = result["confusion_matrix"]
+    assert len(cm) == 2 and all(len(row) == 2 for row in cm)
+
+
+def test_evaluate_model_split_matches_train_py():
+    """Regression test: evaluate_model()'s held-out split must use the
+    exact same test_size/random_state/stratify as train.py, or its
+    numbers wouldn't reflect the split train.py actually evaluated the
+    model against at training time."""
+    with open(os.path.join(os.path.dirname(__file__), "train.py")) as f:
+        train_content = f.read()
+    assert "TEST_SIZE" in train_content
+    assert "RANDOM_STATE" in train_content
+    assert "stratify=y" in train_content
 
 
 def test_load_processed_data_falls_back_to_dummy_on_empty_csv(tmp_path, monkeypatch):
