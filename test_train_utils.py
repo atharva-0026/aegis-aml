@@ -105,24 +105,17 @@ def test_batch_scan_does_not_crash_on_single_invalid_row():
     )
 
 
-def test_hardcoded_model_metrics_staleness_is_documented():
-    """Regression test: app.py's Model & Knowledge Base panel shows
-    hardcoded (not live) accuracy/confusion-matrix numbers. This isn't
-    fixed (see KNOWN_ISSUES.md for why), but the code comment flagging
-    it must stay in place so the limitation stays visible to anyone
-    editing this section, and KNOWN_ISSUES.md must keep tracking it."""
+def test_model_metrics_panel_is_live_not_hardcoded():
+    """Regression test: app.py's Model & Knowledge Base panel used to
+    show frozen numbers ("Accuracy: 99.63%", "F1-Score: 0.87", confusion
+    matrix [[19958, 9], [1, 32]]) that didn't match the shipped model.
+    It must now render evaluate_model() output instead."""
     with open(os.path.join(os.path.dirname(__file__), "app.py")) as f:
         app_content = f.read()
-    idx = app_content.find("Diagnostic Confusion Matrix Heatmap")
-    assert idx != -1
-    nearby = app_content[max(0, idx - 500): idx]
-    assert "NOTE" in nearby and "hardcoded" in nearby.lower(), (
-        "the staleness-risk comment must stay near the confusion matrix code"
-    )
-
-    with open(os.path.join(os.path.dirname(__file__), "KNOWN_ISSUES.md")) as f:
-        known_issues = f.read()
-    assert "hardcoded, not live" in known_issues.lower() or "hardcoded" in known_issues.lower()
+    for frozen in ("99.63%", "F1-Score: 0.87", "[[19958, 9], [1, 32]]", "~97%"):
+        assert frozen not in app_content, f"hardcoded metric {frozen!r} is back in app.py"
+    assert "load_live_metrics()" in app_content
+    assert "evaluate_model(" in app_content
 
 
 def test_load_processed_data_falls_back_to_dummy_on_empty_csv(tmp_path, monkeypatch):
@@ -175,3 +168,64 @@ def test_load_processed_data_falls_back_to_dummy_on_empty_csv(tmp_path, monkeypa
     total_tx = len(df)
     fraud_rate = (df["fraud"].sum() / total_tx) * 100
     assert fraud_rate >= 0
+
+
+def _synthetic_df(n=400, seed=0):
+    import numpy as np
+    import pandas as pd
+
+    rng = np.random.default_rng(seed)
+    df = pd.DataFrame({col: rng.normal(size=n) for col in FEATURE_COLUMNS})
+    df["fraud"] = (df["amount"] > 1.0).astype(int)
+    return df
+
+
+class _FixedProbaModel:
+    """Stub with predict_proba returning the row's 'amount' sign as P(fraud)."""
+
+    def predict_proba(self, X):
+        import numpy as np
+
+        p = (X["amount"].to_numpy() > 1.0).astype(float)
+        return np.column_stack([1 - p, p])
+
+
+def test_evaluate_model_uses_canonical_holdout_split():
+    from train_utils import evaluate_model, TEST_SIZE
+
+    df = _synthetic_df()
+    metrics = evaluate_model(_FixedProbaModel(), df)
+
+    assert metrics["n_test"] == int(len(df) * TEST_SIZE)
+    assert sum(sum(row) for row in metrics["confusion_matrix"]) == metrics["n_test"]
+
+
+def test_evaluate_model_reports_perfect_scores_for_perfect_model():
+    from train_utils import evaluate_model
+
+    metrics = evaluate_model(_FixedProbaModel(), _synthetic_df())
+
+    assert metrics["accuracy"] == 1.0
+    assert metrics["f1"] == 1.0
+    (tn, fp), (fn, tp) = metrics["confusion_matrix"]
+    assert fp == 0 and fn == 0 and tp > 0
+
+
+def test_evaluate_model_matches_shipped_model_on_real_dataset():
+    """The app panel must reflect what model.json actually scores, not
+    frozen numbers. Recompute here and sanity-check the shape."""
+    import pandas as pd
+    import xgboost as xgb
+    from train_utils import evaluate_model
+
+    base = os.path.dirname(os.path.abspath(__file__))
+    data_path = os.path.join(base, "data", "processed", "sar_dataset.csv")
+    if not os.path.exists(data_path):
+        pytest.skip("processed dataset not present")
+    model = xgb.XGBClassifier()
+    model.load_model(os.path.join(base, "model.json"))
+
+    metrics = evaluate_model(model, pd.read_csv(data_path))
+
+    assert 0.0 <= metrics["f1"] <= 1.0
+    assert metrics["n_test"] == 20000

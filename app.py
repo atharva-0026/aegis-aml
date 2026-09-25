@@ -254,6 +254,26 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Live held-out metrics for the Model Metrics panel. Cached so the
+# held-out split is scored once per model.json version, not per page view.
+@st.cache_data
+def _compute_live_metrics(model_mtime):
+    import xgboost as xgb
+    from train_utils import evaluate_model
+    model = xgb.XGBClassifier()
+    model.load_model(os.path.join(BASE_DIR, "model.json"))
+    df = pd.read_csv(os.path.join(BASE_DIR, "data", "processed", "sar_dataset.csv"))
+    return evaluate_model(model, df)
+
+
+def load_live_metrics():
+    try:
+        return _compute_live_metrics(os.path.getmtime(os.path.join(BASE_DIR, "model.json")))
+    except Exception as e:
+        logging.warning("Live model metrics unavailable: %s", e)
+        return None
+
+
 # Helper function to load dataset securely with caching
 @st.cache_data
 def load_processed_data():
@@ -843,29 +863,35 @@ else:
     
     with col_m:
         st.markdown("<h3 style='color:#38bdf8;'> Model Training Logistics</h3>", unsafe_allow_html=True)
-        st.markdown("""
+        metrics = load_live_metrics()
+        if metrics is not None:
+            eval_html = f"""
+                <li>Accuracy: {metrics['accuracy']:.2%}</li>
+                <li>Minority (Fraud) Precision: {metrics['precision']:.2%}</li>
+                <li>Minority (Fraud) Recall: {metrics['recall']:.2%}</li>
+                <li>F1-Score: {metrics['f1']:.2f}</li>
+            """
+            eval_caption = (
+                f"Computed live from model.json on the {metrics['n_test']:,}-row "
+                f"held-out split (decision threshold {metrics['threshold']})."
+            )
+        else:
+            eval_html = "<li>Unavailable - model.json or the processed dataset could not be loaded.</li>"
+            eval_caption = None
+        st.markdown(f"""
         <div class='glass-card'>
             <strong>Classifier:</strong> XGBoost (Extreme Gradient Boosting)<br/>
             <strong>Hyperparameters:</strong> n_estimators=300, max_depth=6, learning_rate=0.05<br/>
             <strong>Oversampling Strategy:</strong> SMOTE (Synthetic Minority Over-sampling Technique)<br/>
             <strong>Evaluation Summary:</strong>
-            <ul>
-                <li>Accuracy: 99.63%</li>
-                <li>Minority (Fraud) Recall: ~97% (SMOTE)</li>
-                <li>F1-Score: 0.87</li>
-            </ul>
+            <ul>{eval_html}</ul>
         </div>
         """, unsafe_allow_html=True)
-        
-        # Static Confusion Matrix visualization
-        # NOTE: these values (and the "Accuracy: 99.63%" etc. above) are
-        # hardcoded from whenever this UI was written, NOT computed live
-        # from the actual current model.json. If the model is ever
-        # retrained via train.py with different data/hyperparameters,
-        # this panel will silently show stale numbers with no
-        # indication they're frozen. See KNOWN_ISSUES.md.
+        if eval_caption:
+            st.caption(eval_caption)
+
         st.markdown("<strong>Diagnostic Confusion Matrix Heatmap</strong>", unsafe_allow_html=True)
-        z = [[19958, 9], [1, 32]]
+        z = metrics['confusion_matrix'] if metrics is not None else [[0, 0], [0, 0]]
         x = ['Normal (Pred)', 'Fraud (Pred)']
         y = ['Normal (True)', 'Fraud (True)']
         

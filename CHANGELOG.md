@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Model & Knowledge Base panel now shows live held-out metrics from model.json (evaluate_model) instead of hardcoded numbers; train.py and the panel share one canonical split and threshold
 - Added regression tests for data/raw fix and README accuracy guard
 - Fixed data/raw/ directory being created but never actually read by preprocessing.py
 - Rewrote README to match actual stack (Streamlit not React, XGBoost not GNN, no FastAPI/ChromaDB/LangChain) — see KNOWN_ISSUES.md
