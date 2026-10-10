@@ -87,22 +87,31 @@ def test_app_does_not_silently_swallow_dataset_load_errors():
 
 
 def test_batch_scan_does_not_crash_on_single_invalid_row():
-    """Regression test: the batch scan loop in app.py previously called
+    """Regression test: the batch scan loop previously called
     predict_transaction() with no error handling. Since
     predict_transaction() raises ValueError for negative amount/time, a
     single bad row anywhere in an uploaded CSV crashed the ENTIRE batch
-    scan, losing all processing on every other row too. Must catch and
-    mark that specific row as an error instead of crashing."""
+    scan, losing all processing on every other row too. The loop now
+    lives in batch_utils.score_batch (behaviour covered in
+    test_batch_utils.py); app.py must route batch scans through it,
+    and the real predict_transaction must be caught per row."""
+    import pandas as pd
+    from batch_utils import DECISION_COL, score_batch
+    from predict import predict_transaction
+
     with open(os.path.join(os.path.dirname(__file__), "app.py")) as f:
         content = f.read()
-    idx = content.find("for _idx, row in batch_df.iterrows()")
-    assert idx != -1, "expected the batch scan loop in app.py"
-    snippet = content[idx: idx + 700]
-    assert "try:" in snippet, "batch scan loop must handle per-row prediction errors"
-    assert "except" in snippet
-    assert "predict_transaction" in snippet.split("try:")[1], (
-        "predict_transaction call must be inside the try block, not before it"
+    assert "score_batch(batch_df, predict_transaction, threshold)" in content, (
+        "Batch Scan Centre must score rows via batch_utils.score_batch"
     )
+    assert "for _idx, row in batch_df.iterrows()" not in content, (
+        "an un-guarded per-row loop is back in app.py"
+    )
+
+    batch = pd.DataFrame({"amount": [12000.0, -5.0], "time": [45000, 100]})
+    scored = score_batch(batch, predict_transaction, threshold=0.5)
+    assert scored[DECISION_COL].iloc[0] in ("Fraud", "Normal")
+    assert scored[DECISION_COL].iloc[1].startswith("Error:")
 
 
 def test_model_metrics_panel_is_live_not_hardcoded():

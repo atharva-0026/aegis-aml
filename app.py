@@ -17,6 +17,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 from predict import predict_transaction
+from batch_utils import DECISION_COL, flagged_only, score_batch, summarize_batch
+from train_utils import DECISION_THRESHOLD
 from rag import generate_narrative, retrieve_regulatory_context, KNOWLEDGE_BASE
 from groq import Groq
 
@@ -31,7 +33,6 @@ if sys.platform.startswith('win'):
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Page Configuration
-# Page Configuration
 st.set_page_config(
     page_title="Aegis SAR - Financial Intelligence Terminal",
     page_icon="🛡️",
@@ -39,218 +40,195 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom Styling (New Palette)
+# Custom Styling — one palette (violet primary, cyan data accent) used by
+# every module. Shared classes: .terminal-header, .section-h, .kpi-card,
+# .glass-card, .alert-card, .safe-card, .brand.
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
-    /* Global Layout & Fonts */
+    :root {
+        --bg: #09090b; --panel: rgba(24, 24, 27, 0.55); --line: rgba(255, 255, 255, 0.08); --line-strong: rgba(255, 255, 255, 0.16);
+        --text: #f4f4f5; --muted: #a1a1aa; --dim: #71717a;
+        --violet: #8b5cf6; --blue: #3b82f6; --cyan: #22d3ee; --red: #ef4444; --amber: #f59e0b; --green: #22c55e;
+    }
+
     html, body, [class*="css"] {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     }
-    
+
     .stApp {
-        background-color: #09090b;
-        background-image: radial-gradient(circle at top center, rgba(56, 31, 108, 0.15) 0%, transparent 60%);
-        color: #f4f4f5;
+        background-color: var(--bg);
+        background-image:
+            radial-gradient(1000px 500px at 15% -10%, rgba(139, 92, 246, 0.16) 0%, transparent 60%),
+            radial-gradient(800px 400px at 100% 0%, rgba(34, 211, 238, 0.08) 0%, transparent 60%);
+        background-attachment: fixed;
+        color: var(--text);
     }
 
-    /* Container Spacing */
     div[data-testid="block-container"] {
         padding-top: 2rem !important;
         padding-bottom: 4rem !important;
         max-width: 1400px !important;
     }
 
-    /* Sidebar styling */
+    /* Sidebar */
     section[data-testid="stSidebar"] {
-        background-color: #09090b !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.05);
+        background: linear-gradient(180deg, #0d0b16 0%, #09090b 100%) !important;
+        border-right: 1px solid var(--line);
     }
-    
-    .css-1d391kg {
-        background-color: transparent !important;
+    .brand { display: flex; align-items: center; gap: 12px; margin: 0.25rem 0 0.5rem; }
+    .brand-mark {
+        width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-size: 22px;
+        background: linear-gradient(135deg, #7c3aed 0%, #2563eb 100%);
+        box-shadow: 0 8px 24px -8px rgba(124, 58, 237, 0.7);
     }
-
-    /* Typography Classes */
-    .page-title {
-        font-size: 2.5rem;
-        font-weight: 00;
-        letter-spacing: -0.02em;
-        margin-bottom: 0.5rem;
-        background: linear-gradient(135deg, #ffffff 0%, #a1a1aa 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+    .brand-name { font-weight: 700; font-size: 18px; letter-spacing: 0.08em; color: var(--text); }
+    .brand-sub { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--dim); letter-spacing: 0.06em; }
+    section[data-testid="stSidebar"] div[role="radiogroup"] label {
+        padding: 8px 10px; border-radius: 10px; margin-bottom: 2px; transition: background 0.15s ease;
     }
-    
-    .page-subtitle {
-        font-size: 1.1rem;
-        color: #a1a1aa;
-        margin-bottom: 2.5rem;
-        font-weight: 400;
+    section[data-testid="stSidebar"] div[role="radiogroup"] label:hover { background: rgba(255, 255, 255, 0.04); }
+    section[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {
+        background: rgba(139, 92, 246, 0.12); box-shadow: inset 2px 0 0 var(--violet);
     }
 
-    .section-title {
-        font-size: 1.25rem;
-        font-weight: 400;
-        color: #e4e4e7;
-        margin-bottom: 1rem;
-        margin-top: 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
+    /* Page header */
+    .terminal-header {
+        display: flex; align-items: center; gap: 14px;
+        padding: 0 0 1.1rem; margin-bottom: 1.75rem;
+        border-bottom: 1px solid var(--line);
+    }
+    .terminal-header::before {
+        content: ""; width: 4px; align-self: stretch; border-radius: 4px;
+        background: linear-gradient(180deg, var(--violet), var(--cyan));
+    }
+    .terminal-header h1 {
+        font-size: 1.55rem !important; font-weight: 700 !important; letter-spacing: 0.02em; margin: 0 !important; padding: 0 !important;
+        background: linear-gradient(135deg, #ffffff 0%, #c4b5fd 100%);
+        -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
     }
 
-    .gradient-text {
-        background: linear-gradient(to right, #60a5fa, #a855f7);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-weight: 400;
+    h3.section-h {
+        font-size: 0.8rem !important; font-weight: 600 !important; color: var(--muted) !important;
+        text-transform: uppercase; letter-spacing: 0.12em; margin: 1.25rem 0 0.75rem !important;
+        display: flex; align-items: center; gap: 8px;
     }
+    h3.section-h::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--violet); box-shadow: 0 0 10px var(--violet); }
+    h4.card-h { color: #c4b5fd !important; margin: 0 !important; font-size: 1rem !important; }
 
-    /* Metrics Styling */
+    /* KPI cards */
+    .kpi-card {
+        position: relative; overflow: hidden;
+        background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+        padding: 18px 20px; margin-bottom: 20px; backdrop-filter: blur(12px);
+        transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+    .kpi-card:hover { border-color: var(--line-strong); transform: translateY(-2px); }
+    .kpi-card::after {
+        content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; background: var(--accent, var(--violet));
+    }
+    .kpi-card::before {
+        content: ""; position: absolute; right: -40px; top: -40px; width: 120px; height: 120px; border-radius: 50%;
+        background: radial-gradient(circle, var(--accent, var(--violet)) 0%, transparent 70%); opacity: 0.12;
+    }
+    .kpi-label { margin: 0; color: var(--muted); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; }
+    .kpi-value { margin: 8px 0 4px; font-size: 30px; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+    .kpi-sub { font-size: 12px; color: var(--accent, var(--muted)); }
+
+    /* Metrics */
     div[data-testid="stMetricValue"] {
-        font-size: 36px !important;
-        font-weight: 400 !important;
-        color: #ffffff !important;
-        letter-spacing: -0.02em !important;
+        font-size: 32px !important; font-weight: 600 !important; color: #ffffff !important; letter-spacing: -0.02em !important;
     }
-
     div[data-testid="stMetricLabel"] {
-        color: #a1a1aa !important;
-        font-size: 13px !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.05em !important;
-        font-weight: 200 !important;
+        color: var(--muted) !important; font-size: 12px !important; text-transform: uppercase !important;
+        letter-spacing: 0.08em !important; font-weight: 500 !important;
     }
 
     /* Cards */
     .glass-card {
-        background: rgba(24, 24, 27, 0.4);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--panel);
+        border: 1px solid var(--line);
         border-radius: 16px;
-        padding: 24px;
+        padding: 22px 24px;
         margin-bottom: 24px;
-        box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.25);
         backdrop-filter: blur(12px);
-        transition: transform 0.2s ease, border-color 0.2s ease;
+        transition: border-color 0.2s ease;
     }
-    .glass-card:hover {
-        border-color: rgba(255, 255, 255, 0.15);
-    }
+    .glass-card:hover { border-color: var(--line-strong); }
+    .glass-card ul { margin: 8px 0 0 1.1rem; }
 
     .alert-card {
-        background: rgba(220, 38, 38, 0.1);
-        border: 1px solid rgba(220, 38, 38, 0.3);
+        background: linear-gradient(135deg, rgba(220, 38, 38, 0.14) 0%, rgba(220, 38, 38, 0.04) 100%);
+        border: 1px solid rgba(239, 68, 68, 0.35);
+        border-left: 4px solid var(--red);
         border-radius: 16px;
-        padding: 24px;
+        padding: 22px 24px;
         margin-bottom: 24px;
     }
-
     .safe-card {
-        background: rgba(16, 185, 129, 0.05);
-        border: 1px solid rgba(16, 185, 129, 0.2);
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.10) 0%, rgba(16, 185, 129, 0.02) 100%);
+        border: 1px solid rgba(34, 197, 94, 0.25);
+        border-left: 4px solid var(--green);
         border-radius: 16px;
-        padding: 24px;
+        padding: 22px 24px;
         margin-bottom: 24px;
     }
 
     /* Buttons */
-    .stButton>button {
-        background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%) !important;
+    .stButton>button, .stFormSubmitButton>button {
+        background: linear-gradient(135deg, var(--blue) 0%, var(--violet) 100%) !important;
         color: #ffffff !important;
         border: none !important;
-        font-family: 'Inter', sans-serif !important;
-        font-weight: 500 !important;
-        font-size: 15px !important;
+        font-weight: 600 !important;
+        font-size: 14.5px !important;
         border-radius: 12px !important;
-        padding: 0.6rem 1.5rem !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 4px 14px 0 rgba(139, 92, 246, 0.3) !important;
-        width: auto !important;
+        padding: 0.6rem 1.4rem !important;
+        transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+        box-shadow: 0 6px 18px -6px rgba(139, 92, 246, 0.6) !important;
     }
-
-    .stButton>button:hover {
+    .stButton>button:hover, .stFormSubmitButton>button:hover {
         transform: translateY(-2px) !important;
-        box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5) !important;
-        background: linear-gradient(135deg, #60a5fa 0%, #a855f7 100%) !important;
+        box-shadow: 0 10px 24px -6px rgba(139, 92, 246, 0.75) !important;
     }
-
-    /* Secondary Download Buttons */
     .stDownloadButton>button {
-        background: rgba(255, 255, 255, 0.05) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        background: rgba(255, 255, 255, 0.04) !important;
+        border: 1px solid var(--line-strong) !important;
         color: #e4e4e7 !important;
+        border-radius: 12px !important;
         box-shadow: none !important;
     }
-    .stDownloadButton>button:hover {
-        background: rgba(255, 255, 255, 0.1) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    }
+    .stDownloadButton>button:hover { background: rgba(139, 92, 246, 0.12) !important; border-color: var(--violet) !important; }
 
     /* Inputs */
-    .stTextInput input,
-    .stNumberInput input,
-    .stTextArea textarea,
-    .stSelectbox div[data-baseweb="select"] {
+    .stTextInput input, .stNumberInput input, .stTextArea textarea {
         background-color: rgba(24, 24, 27, 0.6) !important;
-        color: #f4f4f5 !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        color: var(--text) !important;
         border-radius: 12px !important;
-        padding: 0.5rem !important;
-        font-size: 15px !important;
     }
-    
-    .stTextInput input:focus,
-    .stNumberInput input:focus,
-    .stTextArea textarea:focus {
-        border-color: #8b5cf6 !important;
-        box-shadow: 0 0 0 1px #8b5cf6 !important;
+    .stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus {
+        border-color: var(--violet) !important;
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25) !important;
     }
+    div[data-testid="stForm"] { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
 
-    /* Slider */
-    .stSlider > div[data-baseweb="slider"] > div {
-        color: #8b5cf6 !important;
-    }
-
-    /* Expanders */
-    .streamlit-expanderHeader {
-        background-color: rgba(24, 24, 27, 0.4) !important;
-        color: #e4e4e7 !important;
-        border-radius: 12px !important;
-        border: 1px solid rgba(255, 255, 255, 0.05) !important;
-        font-weight: 500 !important;
-    }
-
-    /* Chat Messages */
+    /* Expanders, chat, dataframes */
+    div[data-testid="stExpander"] details { background: var(--panel); border: 1px solid var(--line) !important; border-radius: 12px; }
     .stChatMessage {
-        background-color: rgba(24, 24, 27, 0.4) !important;
+        background-color: var(--panel) !important;
         border-radius: 16px;
         padding: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--line);
         margin-bottom: 12px;
     }
+    div[data-testid="stDataFrame"] { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 
     /* Scrollbar */
-    ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-        background: transparent;
-    }
-    ::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-        background: rgba(255, 255, 255, 0.2);
-    }
-    
-    /* Remove default top padding in Streamlit */
-    .css-18e3th9 {
-        padding-top: 0rem;
-    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
     </style>
 """, unsafe_allow_html=True)
 
@@ -309,12 +287,12 @@ df_all = load_processed_data()
 
 # Standardize page names with premium emojis for visual excellence
 PAGES = [
-    " Executive Dashboard",
-    " Single Scan",
-    " RAG SAR Drafts",
-    " Batch Scan Centre",
-    " Compliance Copilot",
-    " Model & Knowledge Base"
+    "📊 Executive Dashboard",
+    "🔍 Single Scan",
+    "📝 RAG SAR Drafts",
+    "🗂️ Batch Scan Centre",
+    "💬 Compliance Copilot",
+    "🧠 Model & Knowledge Base"
 ]
 
 from nav_utils import clean_nav
@@ -337,9 +315,11 @@ default_idx = CLEAN_PAGES.index(st.session_state.nav_option)
 
 # Navigation Sidebar
 with st.sidebar:
-    st.image("https://img.icons8.com/nolan/96/shield.png", width=70)
-    st.markdown("<h2 style='color:#38bdf8; margin-top:0;'>AEGIS CORE</h2>", unsafe_allow_html=True)
-    st.markdown("`SECURE AML CONSOLE v1.2`", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='brand'><div class='brand-mark'>🛡️</div>"
+        "<div><div class='brand-name'>AEGIS CORE</div><div class='brand-sub'>SECURE AML CONSOLE v1.2</div></div></div>",
+        unsafe_allow_html=True,
+    )
     st.markdown("---")
     
     selected_page_raw = st.radio(
@@ -356,13 +336,16 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### Decision Threshold")
     threshold = st.slider("ML Alert Sensitivity", min_value=0.1, max_value=0.9, value=0.5, step=0.05)
-    st.caption("Adjust XGBoost alert trigger threshold. Lower thresholds increase sensitivity.")
+    st.caption(
+        "Adjust XGBoost alert trigger threshold. Lower thresholds increase sensitivity. "
+        f"The Model & Knowledge Base metrics are evaluated at the training threshold ({DECISION_THRESHOLD})."
+    )
 
 # ==========================================
 # MODULE 1: EXECUTIVE DASHBOARD
 # ==========================================
 if st.session_state.nav_option == "Executive Dashboard":
-    st.markdown("<div class='terminal-header'><h1> SECURITY OVERVIEW & COMPLIANCE ANALYTICS</h1></div>", unsafe_allow_html=True)
+    st.markdown("<div class='terminal-header'><h1>SECURITY OVERVIEW & COMPLIANCE ANALYTICS</h1></div>", unsafe_allow_html=True)
     
     # Calculate Live Statistics from data
     total_tx = len(df_all)
@@ -373,49 +356,30 @@ if st.session_state.nav_option == "Executive Dashboard":
     
     # KPI Cards
     col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown(f"""
-        <div class='glass-card'>
-            <p style='margin:0;color:#94a3b8;font-size:12px;text-transform:uppercase;'>TOTAL AUDITED DEBITS</p>
-            <h2 style='margin:10px 0 0 0;color:#38bdf8;'>{total_tx:,}</h2>
-            <span style='color:#22c55e;font-size:12px;'>● Online Node Active</span>
-        </div>
-        """, unsafe_allow_html=True)
-    with col2:
-        st.markdown(f"""
-        <div class='glass-card'>
-            <p style='margin:0;color:#94a3b8;font-size:12px;text-transform:uppercase;'>SUSPICIOUS ALERTS</p>
-            <h2 style='margin:10px 0 0 0;color:#ef4444;'>{total_fraud_count:,}</h2>
-            <span style='color:#ef4444;font-size:12px;'>▲ Enhanced Due Diligence</span>
-        </div>
-        """, unsafe_allow_html=True)
-    with col3:
-        st.markdown(f"""
-        <div class='glass-card'>
-            <p style='margin:0;color:#94a3b8;font-size:12px;text-transform:uppercase;'>ALERT CONVERSION RATE</p>
-            <h2 style='margin:10px 0 0 0;color:#f59e0b;'>{fraud_rate:.2f}%</h2>
-            <span style='color:#94a3b8;font-size:12px;'>Model True Positive Index</span>
-        </div>
-        """, unsafe_allow_html=True)
-    with col4:
-        st.markdown(f"""
-        <div class='glass-card'>
-            <p style='margin:0;color:#94a3b8;font-size:12px;text-transform:uppercase;'>RISK CAPITAL AUDITED</p>
-            <h2 style='margin:10px 0 0 0;color:#10b981;'>₹{total_volume_flagged:,.2f}</h2>
-            <span style='color:#10b981;font-size:12px;'>Assets Blocked/Under Hold</span>
-        </div>
-        """, unsafe_allow_html=True)
+    kpis = [
+        ("TOTAL AUDITED DEBITS", f"{total_tx:,}", "● Ledger loaded", "#22d3ee"),
+        ("FRAUD-LABELLED", f"{total_fraud_count:,}", "▲ Cases for enhanced due diligence", "#ef4444"),
+        ("FRAUD PREVALENCE", f"{fraud_rate:.2f}%", "Share of audited debits labelled fraud", "#f59e0b"),
+        ("FRAUD-LABELLED VOLUME", f"₹{total_volume_flagged:,.0f}", "Sum of fraud-labelled amounts", "#8b5cf6"),
+    ]
+    for col, (label, value, sub, accent) in zip((col1, col2, col3, col4), kpis):
+        with col:
+            st.markdown(
+                f"<div class='kpi-card' style='--accent:{accent}'><p class='kpi-label'>{label}</p>"
+                f"<div class='kpi-value'>{value}</div><div class='kpi-sub'>{sub}</div></div>",
+                unsafe_allow_html=True,
+            )
 
     # Interactive Plots
     col_left, col_right = st.columns(2)
     
     with col_left:
-        st.markdown("<h3 style='color:#38bdf8;'>Anomaly Distribution (Fraud vs Normal)</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 class='section-h'>Anomaly Distribution (Fraud vs Normal)</h3>", unsafe_allow_html=True)
         fig_pie = px.pie(
             values=[total_tx - total_fraud_count, total_fraud_count],
             names=['Cleared Transactions', 'Flagged Anomaly'],
             color=['Cleared Transactions', 'Flagged Anomaly'],
-            color_discrete_map={'Cleared Transactions': '#1e293b', 'Flagged Anomaly': '#ef4444'},
+            color_discrete_map={'Cleared Transactions': '#27272a', 'Flagged Anomaly': '#ef4444'},
             hole=0.45
         )
         fig_pie.update_layout(
@@ -427,7 +391,7 @@ if st.session_state.nav_option == "Executive Dashboard":
         st.plotly_chart(fig_pie, use_container_width=True)
 
     with col_right:
-        st.markdown("<h3 style='color:#38bdf8;'>Risk Profile vs Asset Value</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 class='section-h'>Risk Profile vs Asset Value</h3>", unsafe_allow_html=True)
         # Sample data to keep chart responsive
         sample_df = df_all.sample(min(2000, len(df_all)), random_state=42)
         fig_scatter = px.scatter(
@@ -450,7 +414,7 @@ if st.session_state.nav_option == "Executive Dashboard":
         st.plotly_chart(fig_scatter, use_container_width=True)
 
     # Bottom Row: Model Feature Importances
-    st.markdown("<h3 style='color:#38bdf8;'>XGBoost Feature Importance Log</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 class='section-h'>XGBoost Feature Importance Log</h3>", unsafe_allow_html=True)
     try:
         import xgboost as xgb
         model = xgb.XGBClassifier()
@@ -465,7 +429,7 @@ if st.session_state.nav_option == "Executive Dashboard":
             y='Feature',
             orientation='h',
             color='Importance',
-            color_continuous_scale='blues'
+            color_continuous_scale=[[0, '#3b0764'], [1, '#a78bfa']]
         )
         fig_bar.update_layout(
             paper_bgcolor='rgba(0,0,0,0)',
@@ -481,12 +445,12 @@ if st.session_state.nav_option == "Executive Dashboard":
 # MODULE 2: SINGLE TRANSACTION SCAN
 # ==========================================
 elif st.session_state.nav_option == "Single Scan":
-    st.markdown("<div class='terminal-header'><h1> COMPLIANCE SCANNER - REALTIME AUDIT</h1></div>", unsafe_allow_html=True)
+    st.markdown("<div class='terminal-header'><h1>COMPLIANCE SCANNER - REALTIME AUDIT</h1></div>", unsafe_allow_html=True)
     
     col_in, col_out = st.columns([1, 1])
     
     with col_in:
-        st.markdown("<h3 style='color:#38bdf8;'>Audited Assets Parameters</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 class='section-h'>Audited Assets Parameters</h3>", unsafe_allow_html=True)
         
         # User input fields inside card
         with st.form("scan_form"):
@@ -528,7 +492,7 @@ elif st.session_state.nav_option == "Single Scan":
                 if 'current_narrative' in st.session_state:
                     del st.session_state.current_narrative
             
-            st.markdown("<h3 style='color:#38bdf8;'>Risk Evaluation Results</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 class='section-h'>Risk Evaluation Results</h3>", unsafe_allow_html=True)
             
             # Risk gauge
             fig_gauge = go.Figure(go.Indicator(
@@ -539,7 +503,7 @@ elif st.session_state.nav_option == "Single Scan":
                 number={'suffix': "%", 'font': {'size': 32, 'color': '#e2e8f0'}},
                 gauge={
                     'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#94a3b8"},
-                    'bar': {'color': "#38bdf8"},
+                    'bar': {'color': "#a78bfa"},
                     'bgcolor': "rgba(30, 41, 59, 0.5)",
                     'borderwidth': 1,
                     'bordercolor': "rgba(255,255,255,0.08)",
@@ -593,7 +557,7 @@ elif st.session_state.nav_option == "Single Scan":
 # MODULE 3: RAG SAR NARRATIVE GENERATOR
 # ==========================================
 elif st.session_state.nav_option == "RAG SAR Drafts":
-    st.markdown("<div class='terminal-header'><h1> RAG COMPLIANCE GENERATOR (SAR AUTOMATION)</h1></div>", unsafe_allow_html=True)
+    st.markdown("<div class='terminal-header'><h1>RAG COMPLIANCE GENERATOR (SAR AUTOMATION)</h1></div>", unsafe_allow_html=True)
     
     if 'amount' not in st.session_state:
         st.warning(" No scanned transaction found in active session memory. Please scan a transaction in 'Single Scan' first.")
@@ -614,26 +578,26 @@ elif st.session_state.nav_option == "RAG SAR Drafts":
         col_ref, col_gen = st.columns([2, 3])
         
         with col_ref:
-            st.markdown("<h3 style='color:#38bdf8;'>1. RAG Retrieve Stage (TF-IDF Matching)</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 class='section-h'>1. RAG Retrieve Stage (TF-IDF Matching)</h3>", unsafe_allow_html=True)
             
             # Fetch context
             kb_doc = retrieve_regulatory_context(amount, time, tx_type, location, by_rules)
             
             st.markdown(f"""
             <div class='glass-card'>
-                <h4 style='color:#38bdf8;margin:0;'>Matched Compliance Regulation</h4>
+                <h4 class='card-h'>Matched Compliance Regulation</h4>
                 <p style='margin:10px 0 0 0;font-size:14px;'><strong>Source Document:</strong> {kb_doc['title']}</p>
                 <p style='margin:10px 0;font-size:13px;color:#94a3b8;line-height:1.4;'>
                     <em>"{kb_doc['text']}"</em>
                 </p>
                 <hr style='border-color:rgba(255,255,255,0.08);'/>
-                <p style='font-size:12px;color:#38bdf8;'>
+                <p style='font-size:12px;color:#a5b4fc;'>
                     <strong>Retrieval Logic:</strong> TF-IDF query parsed transaction risk vectors (Amount: ₹{amount:,.0f}, time-offset: {time}) to match compliance guidelines in real time.
                 </p>
             </div>
             """, unsafe_allow_html=True)
             
-            st.markdown("<h3 style='color:#38bdf8;'>Scanned Audit Trail</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 class='section-h'>Scanned Audit Trail</h3>", unsafe_allow_html=True)
             st.json({
                 "Principal": f"₹{amount:,.2f}",
                 "Time Frame": time,
@@ -644,7 +608,7 @@ elif st.session_state.nav_option == "RAG SAR Drafts":
             })
 
         with col_gen:
-            st.markdown("<h3 style='color:#38bdf8;'>2. Generative Draft Stage (Groq LLM / Template)</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 class='section-h'>2. Generative Draft Stage (Groq LLM / Template)</h3>", unsafe_allow_html=True)
             
             # Check if we arrived here via the Auto-draft button
             should_generate = st.button("Generate Regulatory Narrative Report")
@@ -682,12 +646,12 @@ elif st.session_state.nav_option == "RAG SAR Drafts":
 # MODULE 4: BATCH SCAN CENTRE
 # ==========================================
 elif st.session_state.nav_option == "Batch Scan Centre":
-    st.markdown("<div class='terminal-header'><h1> BATCH PROCESSING OPERATIONS CENTER</h1></div>", unsafe_allow_html=True)
+    st.markdown("<div class='terminal-header'><h1>BATCH PROCESSING OPERATIONS CENTER</h1></div>", unsafe_allow_html=True)
     
     col_l, col_r = st.columns([1, 2])
     
     with col_l:
-        st.markdown("<h3 style='color:#38bdf8;'>Upload Transaction Batches</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 class='section-h'>Upload Transaction Batches</h3>", unsafe_allow_html=True)
         
         # Download Sample Template
         sample_df = pd.DataFrame([
@@ -699,7 +663,7 @@ elif st.session_state.nav_option == "Batch Scan Centre":
         sample_csv = sample_df.to_csv(index=False).encode('utf-8')
         
         st.download_button(
-            label=" Download Sample Batch CSV",
+            label="Download Sample Batch CSV",
             data=sample_csv,
             file_name="aegis_batch_sample.csv",
             mime="text/csv"
@@ -720,56 +684,51 @@ elif st.session_state.nav_option == "Batch Scan Centre":
                     st.error(" Invalid CSV columns. Must contain at least 'amount' and 'time' columns.")
                 else:
                     with st.spinner("Scanning Batch Ledger using XGBoost Classifier..."):
-                        # Ensure string locations & tx_types have defaults
-                        if "location" not in batch_df.columns:
-                            batch_df["location"] = "India"
-                        if "transaction_type" not in batch_df.columns:
-                            batch_df["transaction_type"] = "payment"
-                            
-                        # Predict
-                        scores = []
-                        decisions = []
-                        for _idx, row in batch_df.iterrows():
-                            # predict_transaction() raises ValueError for
-                            # negative amount/time - without this
-                            # try/except, a single bad row (data entry
-                            # error, a refund represented as a negative
-                            # amount, etc.) crashed the ENTIRE batch scan
-                            # with a raw traceback, losing all processing
-                            # done on every other row too.
-                            try:
-                                res = predict_transaction(row["amount"], row["time"], threshold=threshold)
-                                scores.append(res["fraud_probability"])
-                                decisions.append(res["prediction"])
-                            except (ValueError, TypeError) as e:
-                                scores.append(None)
-                                decisions.append(f"Error: {e}")
-                            
-                        batch_df["Anomaly Probability"] = scores
-                        batch_df["Decision Audit"] = decisions
-                        
-                        st.markdown("<h3 style='color:#38bdf8;'>Scan Complete: Diagnostic Ledger</h3>", unsafe_allow_html=True)
-                        
-                        # Style flagged rows as red
-                        def color_fraud(val):
-                            if isinstance(val, str) and val.startswith("Error:"):
-                                color = 'rgba(234, 179, 8, 0.25)'  # amber - distinct from fraud red
-                            elif val == 'Fraud':
-                                color = 'rgba(239, 68, 68, 0.2)'
-                            else:
-                                color = 'rgba(0,0,0,0)'
-                            return f'background-color: {color}'
-                        
-                        st.dataframe(batch_df.style.map(color_fraud, subset=['Decision Audit']), use_container_width=True)
-                        
-                        # Export results CSV
-                        results_csv = batch_df.to_csv(index=False).encode('utf-8')
-                        st.download_button(
-                            label=" Export Flagged Batch Report (CSV)",
-                            data=results_csv,
-                            file_name="aegis_batch_results.csv",
-                            mime="text/csv"
-                        )
+                        # Rows that fail validation (negative amount, non-numeric
+                        # cell, ...) are marked "Error: ..." instead of aborting
+                        # the whole batch - see batch_utils.score_batch.
+                        batch_df = score_batch(batch_df, predict_transaction, threshold)
+                    summary = summarize_batch(batch_df)
+
+                    st.markdown("<h3 class='section-h'>Scan Complete: Diagnostic Ledger</h3>", unsafe_allow_html=True)
+                    m1, m2, m3, m4 = st.columns(4)
+                    m1.metric("Rows scanned", f"{summary['total']:,}")
+                    m2.metric("Flagged", f"{summary['flagged']:,}", help="Share of rows that scored without error")
+                    m2.caption(f"{summary['flag_rate']:.1%} of valid rows")
+                    m3.metric("Flagged volume", f"₹{summary['flagged_volume']:,.0f}")
+                    m4.metric("Row errors", f"{summary['errors']:,}")
+
+                    only_flagged = st.toggle("Show flagged rows only", value=False)
+                    view_df = flagged_only(batch_df) if only_flagged else batch_df
+
+                    # Style flagged rows as red
+                    def color_fraud(val):
+                        if isinstance(val, str) and val.startswith("Error:"):
+                            color = 'rgba(234, 179, 8, 0.25)'  # amber - distinct from fraud red
+                        elif val == 'Fraud':
+                            color = 'rgba(239, 68, 68, 0.2)'
+                        else:
+                            color = 'rgba(0,0,0,0)'
+                        return f'background-color: {color}'
+
+                    st.dataframe(view_df.style.map(color_fraud, subset=[DECISION_COL]), use_container_width=True)
+
+                    d1, d2 = st.columns(2)
+                    d1.download_button(
+                        label="Export Full Batch Report (CSV)",
+                        data=batch_df.to_csv(index=False).encode('utf-8'),
+                        file_name="aegis_batch_results.csv",
+                        mime="text/csv",
+                        use_container_width=True,
+                    )
+                    d2.download_button(
+                        label=f"Export {summary['flagged']} Flagged Rows (CSV)",
+                        data=flagged_only(batch_df).to_csv(index=False).encode('utf-8'),
+                        file_name="aegis_batch_flagged.csv",
+                        mime="text/csv",
+                        disabled=summary['flagged'] == 0,
+                        use_container_width=True,
+                    )
             except Exception as e:
                 st.error(f" Failed to parse uploaded file: {str(e)}")
         else:
@@ -779,7 +738,7 @@ elif st.session_state.nav_option == "Batch Scan Centre":
 # MODULE 5: COMPLIANCE COPILOT
 # ==========================================
 elif st.session_state.nav_option == "Compliance Copilot":
-    st.markdown("<div class='terminal-header'><h1> AEGIS COMPLIANCE COPILOT (AI ASSISTANT)</h1></div>", unsafe_allow_html=True)
+    st.markdown("<div class='terminal-header'><h1>AEGIS COMPLIANCE COPILOT (AI ASSISTANT)</h1></div>", unsafe_allow_html=True)
     
     st.markdown("""
     <div class='glass-card' style='font-size:13px;line-height:1.5;'>
@@ -857,12 +816,12 @@ elif st.session_state.nav_option == "Compliance Copilot":
 # MODULE 6: MODEL & KNOWLEDGE BASE
 # ==========================================
 else:
-    st.markdown("<div class='terminal-header'><h1> MODEL METRICS & COMPLIANCE KNOWLEDGE BASE</h1></div>", unsafe_allow_html=True)
+    st.markdown("<div class='terminal-header'><h1>MODEL METRICS & COMPLIANCE KNOWLEDGE BASE</h1></div>", unsafe_allow_html=True)
     
     col_m, col_k = st.columns(2)
     
     with col_m:
-        st.markdown("<h3 style='color:#38bdf8;'> Model Training Logistics</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 class='section-h'>Model Training Logistics</h3>", unsafe_allow_html=True)
         metrics = load_live_metrics()
         if metrics is not None:
             eval_html = f"""
@@ -890,7 +849,7 @@ else:
         if eval_caption:
             st.caption(eval_caption)
 
-        st.markdown("<strong>Diagnostic Confusion Matrix Heatmap</strong>", unsafe_allow_html=True)
+        st.markdown("<h3 class='section-h'>Diagnostic Confusion Matrix</h3>", unsafe_allow_html=True)
         z = metrics['confusion_matrix'] if metrics is not None else [[0, 0], [0, 0]]
         x = ['Normal (Pred)', 'Fraud (Pred)']
         y = ['Normal (True)', 'Fraud (True)']
@@ -899,7 +858,7 @@ else:
             z,
             x=x,
             y=y,
-            color_continuous_scale='blues',
+            color_continuous_scale=[[0, '#18181b'], [1, '#7c3aed']],
             text_auto=True
         )
         fig_heat.update_layout(
@@ -912,7 +871,7 @@ else:
         st.plotly_chart(fig_heat, use_container_width=True)
 
     with col_k:
-        st.markdown("<h3 style='color:#38bdf8;'> Regulatory RAG Knowledge Base</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 class='section-h'>Regulatory RAG Knowledge Base</h3>", unsafe_allow_html=True)
         st.caption("Active documents searched by TF-IDF retrieval system when constructing prompt context:")
         
         for idx, doc in enumerate(KNOWLEDGE_BASE):
