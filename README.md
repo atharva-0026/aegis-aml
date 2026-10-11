@@ -12,6 +12,7 @@ End-to-end anti-money laundering detection platform built for financial institut
 - **XGBoost risk scoring** — trained classifier flags suspicious transactions by probability, with hardcoded rule overrides for high-value transfers
 - **RAG-lite narrative generation** — TF-IDF retrieval over a regulatory knowledge base feeds context into Llama 3.1 (via Groq) to draft SAR narratives, with a template-based fallback when the API is unavailable
 - **Streamlit terminal-style dashboard** — dark, data-dense UI for single-transaction scans, batch CSV scoring, and model diagnostics
+- **Batch Scan Centre** — upload a CSV, get per-row scores with headline totals (flagged count/volume, row errors), a flagged-only view, and full or flagged-only CSV export
 
 ## Stack
 `Python` `Streamlit` `XGBoost` `scikit-learn` `Groq (Llama 3.1)` `Plotly`
@@ -33,10 +34,11 @@ See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for a tracked train/inference feature mis
 pip install -r requirements.txt
 streamlit run app.py
 ```
+Or with `make`: `make install`, `make run`, `make train`, `make test` (`make help` lists everything).
 
 ## Testing
 ```bash
 pip install -r requirements-dev.txt
 pytest
 ```
-38 tests covering inference, RAG retrieval, model artifacts, and utility functions.
+Tests cover inference, batch scoring, RAG retrieval, model artifacts/metrics, and utility functions.

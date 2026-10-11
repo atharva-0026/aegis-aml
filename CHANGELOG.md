@@ -1,6 +1,13 @@
 # Changelog
 
 ## Unreleased
+- Dashboard redesign: one violet/cyan palette across all modules, dark Streamlit theme (`.streamlit/config.toml`), branded sidebar (no external icon image), icon nav, accent KPI cards, consistent section headers, tinted alert/cleared cards, restyled charts
+- Executive Dashboard KPI labels now say what they measure ("Fraud prevalence", "Fraud-labelled volume") instead of implying model performance
+- Batch Scan Centre: headline totals (rows, flagged, flagged volume, row errors), "flagged rows only" toggle, separate flagged-only CSV export; scoring moved to `batch_utils.py` with unit tests
+- Sidebar threshold caption notes that the Model & Knowledge Base metrics use the training threshold
+- Removed unused `static/style.css` (597 lines, not referenced anywhere)
+- Added `Makefile` (`make run`, `make train`, `make test`, …)
+- Model & Knowledge Base panel now shows live held-out metrics from model.json (evaluate_model) instead of hardcoded numbers; train.py and the panel share one canonical split and threshold
 - Added regression tests for data/raw fix and README accuracy guard
 - Fixed data/raw/ directory being created but never actually read by preprocessing.py
 - Rewrote README to match actual stack (Streamlit not React, XGBoost not GNN, no FastAPI/ChromaDB/LangChain) — see KNOWN_ISSUES.md

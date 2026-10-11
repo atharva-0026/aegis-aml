@@ -159,39 +159,29 @@ against no longer exists.
 
 ## Model metrics panel shows hardcoded, not live, numbers
 
-**Status:** Open — flagged, not fixed. Documenting the risk rather than
-rushing a bigger feature.
+**Status:** Resolved (2026-09).
 
-The "Model Training Logistics" panel in `app.py` (Module 6) displays
-static text — "Accuracy: 99.63%", "F1-Score: 0.87" — and a hardcoded
-confusion matrix (`z = [[19958, 9], [1, 32]]`) for the heatmap
-visualization. None of this is computed from the actual current
-`model.pkl`; it's frozen from whenever this UI section was written.
+The "Model Training Logistics" panel in `app.py` (Module 6) displayed
+static text — "Accuracy: 99.63%", "Minority (Fraud) Recall: ~97%",
+"F1-Score: 0.87" — and a hardcoded confusion matrix
+(`[[19958, 9], [1, 32]]`), none of it computed from the shipped model.
 
-**Risk:** if the model is ever retrained via `train.py` with different
-data, hyperparameters, or even just a different random seed, this
-panel will silently continue showing the old numbers with zero
-indication they're stale or disconnected from what's actually deployed.
-A user reading this panel has no way to tell "these are real current
-metrics" from "these are frozen from an earlier training run."
+**Fix:** added `evaluate_model()` to `train_utils.py`. It scores the
+canonical held-out split (`holdout_split()` — the same 80/20,
+`random_state=42`, stratified split `train.py` now imports, so the rows
+are exactly the ones the model never trained on) at the same 0.9
+decision threshold and returns accuracy, fraud-class precision/recall/F1
+and the confusion matrix. `app.py` renders that, cached per
+`model.json` mtime via `st.cache_data`. Covered by
+`test_model_metrics_panel_is_live_not_hardcoded` and the
+`test_evaluate_model_*` tests.
 
-**Why not fixed now:** computing genuinely live metrics would mean
-loading a held-out test set at runtime, running predictions through
-the current model, and rendering the real confusion matrix/accuracy —
-a real feature addition (deciding on a canonical held-out set, handling
-the load-time cost on every page view, etc.), not a small bug fix. That
-deserves its own deliberate pass rather than a rushed implementation
-bundled into an unrelated fix.
-
-**Interim mitigation applied:** added a code comment directly above the
-hardcoded values in `app.py` explaining they're static, so a future
-contributor immediately sees the caveat instead of assuming the numbers
-are live.
-
-**Proper fix (future work):** add a small `evaluate_model()` helper
-(likely in `train_utils.py` alongside `FEATURE_COLUMNS`) that loads a
-fixed held-out test split, scores it with the current `model.pkl`, and
-returns real accuracy/F1/confusion-matrix values — then have `app.py`
-call it once per session (cached via `st.cache_data`) instead of
-hardcoding the panel's contents.
-
+**What the live numbers show:** the frozen figures were badly
+overstated. On the current `model.json` + `data/processed/sar_dataset.csv`
+(reproduced exactly by rerunning `train.py`), the held-out split gives
+accuracy 99.63% but fraud precision ~14%, recall 25%, F1 ~0.18,
+confusion matrix `[[19918, 50], [24, 8]]` — only 32 fraud rows in the
+20,000-row test set. Accuracy is dominated by the ~0.16% fraud base
+rate. Improving the model itself (feature set — V1-V28 are in the
+dataset but unused — threshold, resampling) is separate future work;
+the panel now at least reports the truth.

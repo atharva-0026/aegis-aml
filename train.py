@@ -7,7 +7,6 @@ model and feature list for use by predict.py.
 """
 
 import pandas as pd
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 import xgboost as xgb
 from imblearn.over_sampling import SMOTE
@@ -24,7 +23,7 @@ if sys.platform.startswith('win'):
         pass
 
 
-from train_utils import resolve_dataset_path, FEATURE_COLUMNS
+from train_utils import resolve_dataset_path, holdout_split, FEATURE_COLUMNS, DECISION_THRESHOLD
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 file_path = resolve_dataset_path(BASE_DIR)
@@ -36,13 +35,8 @@ print("Dataset Loaded:", df.shape)
 
 features = FEATURE_COLUMNS
 
-X = df[features]
-y = df['fraud']
-
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y
-)
+# Same split evaluate_model() uses for the app's live metrics panel.
+X_train, X_test, y_train, y_test = holdout_split(df)
 
 
 smote = SMOTE(random_state=42)
@@ -68,7 +62,7 @@ print(" Model Trained")
 
 y_probs = model.predict_proba(X_test)[:, 1]
 
-threshold = 0.9
+threshold = DECISION_THRESHOLD
 y_pred = (y_probs > threshold).astype(int)
 
 
