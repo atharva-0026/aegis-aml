@@ -64,6 +64,27 @@ def test_negative_time_raises():
         predict_transaction(100, -1)
 
 
+@pytest.mark.parametrize("amount,time", [
+    (float("nan"), 1000), (float("inf"), 1000), (100, float("nan")), (100, float("inf")),
+])
+def test_non_finite_input_raises(amount, time):
+    with pytest.raises(ValueError, match="finite"):
+        predict_transaction(amount, time)
+
+
+def test_blank_csv_amount_is_an_error_row_not_fraud():
+    import io
+
+    import pandas as pd
+
+    from batch_utils import DECISION_COL, score_batch
+
+    batch_df = pd.read_csv(io.StringIO("amount,time\n,1000\n500,1000\n"))
+    scored = score_batch(batch_df, predict_transaction, 0.9)
+    assert scored[DECISION_COL].iloc[0].startswith("Error: amount must be a finite number")
+    assert not scored[DECISION_COL].iloc[1].startswith("Error")
+
+
 def test_explain_prediction_returns_top_factors():
     from predict import explain_prediction
 

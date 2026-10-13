@@ -41,8 +41,15 @@ def _build_features(amount: float, time: float) -> pd.DataFrame:
     Build the model-ready feature row for a single transaction.
 
     Raises:
-        ValueError: if amount or time is negative.
+        ValueError: if amount or time is negative, NaN or infinite.
     """
+    # NaN slips past "< 0" (every comparison is False). A blank cell in an
+    # uploaded batch CSV reads as NaN, and the model scored it as Fraud at
+    # ~0.76 instead of reporting a bad row; inf tripped the amount rule.
+    if not np.isfinite(amount):
+        raise ValueError(f"amount must be a finite number, got {amount}")
+    if not np.isfinite(time):
+        raise ValueError(f"time must be a finite number, got {time}")
     if amount < 0:
         raise ValueError(f"amount must be non-negative, got {amount}")
     if time < 0:

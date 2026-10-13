@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Fixed: a blank amount/time cell in a batch CSV (read as NaN) was scored as Fraud (~0.76); NaN/inf inputs are now rejected and show as an error row
 - Dashboard redesign: one violet/cyan palette across all modules, dark Streamlit theme (`.streamlit/config.toml`), branded sidebar (no external icon image), icon nav, accent KPI cards, consistent section headers, tinted alert/cleared cards, restyled charts
 - Executive Dashboard KPI labels now say what they measure ("Fraud prevalence", "Fraud-labelled volume") instead of implying model performance
 - Batch Scan Centre: headline totals (rows, flagged, flagged volume, row errors), "flagged rows only" toggle, separate flagged-only CSV export; scoring moved to `batch_utils.py` with unit tests
